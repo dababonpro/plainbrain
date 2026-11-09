@@ -2,8 +2,14 @@
   "plainbrain-inbox-guard": {
     "PreToolUse": [
       {
-        "matcher": "write_to_file|replace_file_content|multi_replace_file_content|run_command",
-        "hooks": [{ "type": "command", "command": "python scripts/inbox_guard.py", "timeout": 10 }]
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import os,runpy;p=next(c for c in ('scripts/inbox_guard.py','../scripts/inbox_guard.py') if os.path.exists(c));runpy.run_path(p,run_name='__main__')\"",
+            "timeout": 10
+          }
+        ]
       }
     ]
   }

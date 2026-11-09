@@ -83,3 +83,11 @@ def test_antigravity_allows_reads_capture_and_other_files():
     command = "python scripts/brain.py capture --root . --repo demo --text hi"
     assert not _deny(_antigravity("run_command", {"CommandLine": command, "Cwd": HERE}))
     assert not _deny(_antigravity("write_to_file", {"TargetFile": HERE + "/knowledge/note.md"}))
+
+
+def test_antigravity_other_tool_names():
+    # Some Antigravity versions name the file tools write_file and edit_file, and the shell run_shell_command.
+    assert _deny(_antigravity("write_file", {"path": INBOX, "content": "x"}))
+    assert _deny(_antigravity("edit_file", {"file_path": INBOX}))
+    assert _deny(_antigravity("run_shell_command", {"command": "echo x > INBOX.md"}))
+    assert not _deny(_antigravity("edit_file", {"file_path": HERE + "/knowledge/note.md"}))

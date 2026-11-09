@@ -162,7 +162,13 @@ def _antigravity(payload: dict, call: dict) -> dict:
     cwd = args.get("Cwd") if isinstance(args.get("Cwd"), str) else ""
     if not cwd and isinstance(roots, list) and len(roots) == 1 and isinstance(roots[0], str):
         cwd = roots[0]
-    tool_input = {"command": args["CommandLine"]} if isinstance(args.get("CommandLine"), str) else args
+    command = args.get("CommandLine") if isinstance(args.get("CommandLine"), str) else args.get("command")
+    if isinstance(command, str):
+        # Tool names differ between Antigravity versions (run_command, run_shell_command), so a command line
+        # alone marks a shell call.
+        name, tool_input = "run_command", {"command": command}
+    else:
+        tool_input = args
     verdict = decide({"hook_event_name": "PreToolUse", "tool_name": name, "tool_input": tool_input, "cwd": cwd})
     if verdict.get("hookSpecificOutput", {}).get("permissionDecision") == "deny":
         return {"decision": "deny", "reason": REASON}
