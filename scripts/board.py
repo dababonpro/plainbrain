@@ -109,7 +109,7 @@ def render_board(
         '<html lang="en">',
         "<head>",
         '<meta charset="utf-8">',
-        "<title>Second Brain</title>",
+        "<title>Plainbrain</title>",
         "<style>",
         "body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; }",
         "li { margin: 0.25rem 0; }",
@@ -117,7 +117,7 @@ def render_board(
         "</style>",
         "</head>",
         "<body>",
-        "<h1>Second Brain</h1>",
+        "<h1>Plainbrain</h1>",
         f'<p id="brief-date">{html.escape(date)}</p>',
     ]
     if notices:
@@ -195,7 +195,7 @@ def write_board(root: Path, today: str) -> int:
     freshness = f"Board generated: {html.escape(today)}. Brief: {html.escape(date)}."
     if date != today:
         freshness += " Brief is not current; next-hour recommendation may be stale."
-    page = page.replace("<h1>Second Brain</h1>", f'<h1>Second Brain</h1><p id="freshness">{freshness}</p>')
+    page = page.replace("<h1>Plainbrain</h1>", f'<h1>Plainbrain</h1><p id="freshness">{freshness}</p>')
     _write(html_path, page)
     return 0
 

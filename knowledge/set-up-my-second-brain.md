@@ -2,7 +2,7 @@
 type: reference
 para: project
 recorded: 2026-11-08
-source: Second Brain Basic example note
+source: Plainbrain example note
 related_items: set-up-second-brain
 related_notes:
   - "[[running-a-second-brain]]"

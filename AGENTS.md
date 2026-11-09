@@ -1,4 +1,4 @@
-# Second Brain Protocol
+# Plainbrain Protocol
 
 Rules for any AI agent working in this folder. This folder is the owner's second brain: what they owe, what they know, and what is on their mind.
 

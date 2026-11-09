@@ -228,8 +228,8 @@ def test_a_held_lock_blocks_then_a_stale_lock_is_cleared(tmp_path, monkeypatch):
     assert "after stale (from demo, 2026-10-21)" in inbox_items((tmp_path / "INBOX.md").read_text(encoding="utf-8"))
 
 
-def test_capture_refuses_a_root_that_is_not_second_brain(tmp_path):
-    missing = tmp_path / "SecondBrain"
+def test_capture_refuses_a_root_that_is_not_plainbrain(tmp_path):
+    missing = tmp_path / "Plainbrain"
     with pytest.raises(CaptureError):
         capture_line(missing, "demo", "lost line", "2026-10-21")
     assert not missing.exists()
@@ -239,7 +239,7 @@ def test_capture_refuses_a_root_that_is_not_second_brain(tmp_path):
         capture_line(empty, "demo", "lost line", "2026-10-21")
     assert not (empty / "INBOX.md").exists()
     with pytest.raises(CaptureError, match="drive-relative"):
-        capture_line(Path("C:SecondBrain"), "demo", "lost line", "2026-10-21")
+        capture_line(Path("C:Plainbrain"), "demo", "lost line", "2026-10-21")
     with pytest.raises(CaptureError):
         drop_lines(missing, contains=["x"])
 

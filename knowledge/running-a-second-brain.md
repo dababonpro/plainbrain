@@ -2,7 +2,7 @@
 type: reference
 para: area
 recorded: 2026-11-08
-source: Second Brain Basic example note
+source: Plainbrain example note
 aliases: second brain, how this works
 related_items:
 related_notes:

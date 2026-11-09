@@ -1,4 +1,4 @@
-# Second Brain Basic
+# Plainbrain
 
 A second brain you run with plain Markdown files, a few Python scripts and any AI agent: one list of commitments, an inbox for capture, notes worth finding again, a daily brief and a weekly review.
 
@@ -11,8 +11,8 @@ Free from DababonPro IT Solutions. It works on its own; [Obsidian](https://obsid
 Needs Python 3.11 or later. Obsidian is optional.
 
 ```text
-git clone https://github.com/dababonpro/second-brain-basic my-second-brain
-cd my-second-brain
+git clone https://github.com/dababonpro/plainbrain my-plainbrain
+cd my-plainbrain
 python -m pip install -r requirements.txt
 python scripts/brain.py init --root .
 python scripts/brain.py capture --root . --repo setup --text "Try the daily brief"
@@ -57,7 +57,7 @@ Every command takes `--root .`. Agents follow `AGENTS.md`, and use the skills in
 | | Without Obsidian | With Obsidian |
 |---|---|---|
 | Find notes | `search`, or your agent | The same, plus Obsidian's search |
-| See notes by PARA | Ask your agent, or search by field | Open `views/Second Brain.base` |
+| See notes by PARA | Ask your agent, or search by field | Open `views/Plainbrain.base` |
 | Rename a note | Update every link to it, or ask your agent | Obsidian updates links for you |
 
 Nothing depends on an Obsidian plugin.

@@ -2,7 +2,7 @@
 type: person
 para: area
 recorded: 2026-11-08
-source: Second Brain Basic example note. Jane Example is fictional.
+source: Plainbrain example note. Jane Example is fictional.
 role: Team lead, operations
 organisation: Example Co.
 related_items: set-up-second-brain

@@ -1,8 +1,8 @@
-"""Second Brain as a local MCP server (stdio). No network, no API keys.
+"""Plainbrain as a local MCP server (stdio). No network, no API keys.
 
 Every tool reads the files in this checkout. The one write is `capture`, which appends a
 line to INBOX.md through the same locked, append-only path as `brain.py capture`.
-Registry, triage, and brief changes stay in a Second Brain session.
+Registry, triage, and brief changes stay in a Plainbrain session.
 """
 import os
 import sys
@@ -20,16 +20,16 @@ from scripts.model import RegistryParseError, latest_brief_path, parse_registry 
 from scripts.search import search as ranked_search  # noqa: E402
 
 INSTRUCTIONS = (
-    "Second Brain is the owner's command system: REGISTRY.md is the only list of their commitments, "
+    "Plainbrain is the owner's command system: REGISTRY.md is the only list of their commitments, "
     "INBOX.md holds raw capture, knowledge/ holds notes and project cards. "
     "Start work in a repo with for_repo to see what the owner already owes there. "
     "Use search before asking the owner about a past decision, person, or ticket. "
     "At the end of a session, call capture once per fact worth tomorrow's brief: one sentence "
     "on what happened and what is left. Never capture a transcript. capture is the only write; "
-    "registry changes, triage, and briefs happen in a Second Brain session."
+    "registry changes, triage, and briefs happen in a Plainbrain session."
 )
 
-server = FastMCP("second-brain", instructions=INSTRUCTIONS)
+server = FastMCP("plainbrain", instructions=INSTRUCTIONS)
 
 
 def _today() -> str:

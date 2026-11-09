@@ -189,18 +189,18 @@ def format_bullet(repo: str, text: str, today: str) -> str:
 
 
 def check_root(root: Path) -> Path:
-    """Refuse a root that is not an existing Second Brain folder.
+    """Refuse a root that is not an existing Plainbrain folder.
 
-    Git Bash turns an unquoted C:\\SecondBrain into the drive-relative C:SecondBrain, which
+    Git Bash turns an unquoted C:\\Plainbrain into the drive-relative C:Plainbrain, which
     quietly resolved to a new folder and a new, empty inbox. A root must be absolute (after
     resolving '.') and already hold REGISTRY.md or INBOX.md.
     """
     raw = Path(root)
     if raw.drive and not raw.is_absolute():
-        raise CaptureError(f"--root {root} is drive-relative; quote it or use C:/SecondBrain")
+        raise CaptureError(f"--root {root} is drive-relative; quote it or use C:/Plainbrain")
     resolved = raw.resolve()
     if not resolved.is_dir() or not any((resolved / name).is_file() for name in ("REGISTRY.md", "INBOX.md")):
-        raise CaptureError(f"--root {resolved} is not a Second Brain folder (no REGISTRY.md or INBOX.md)")
+        raise CaptureError(f"--root {resolved} is not a Plainbrain folder (no REGISTRY.md or INBOX.md)")
     return resolved
 
 

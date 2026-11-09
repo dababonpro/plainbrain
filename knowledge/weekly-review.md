@@ -2,7 +2,7 @@
 type: technique
 para: area
 recorded: 2026-11-08
-source: Second Brain Basic example note
+source: Plainbrain example note
 related_items:
 related_notes:
   - "[[running-a-second-brain]]"

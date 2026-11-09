@@ -1,4 +1,4 @@
-"""Command line for Second Brain Basic.
+"""Command line for Plainbrain.
 
     python scripts/brain.py init --root .
     python scripts/brain.py capture --root . --repo my-website --text "one sentence"

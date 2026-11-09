@@ -2,7 +2,7 @@
 type: meeting
 para: project
 recorded: 2026-11-10
-source: Second Brain Basic example note
+source: Plainbrain example note
 attendees:
   - "[[jane-example]]"
 related_items: set-up-second-brain

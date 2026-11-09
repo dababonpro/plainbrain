@@ -218,7 +218,7 @@ def catalog_report(sources: list[tuple[str, Path]], root: Path, today: str) -> s
             lines.append(f"- {r['name']} ({when}){' - ' + about if about else ''}")
         lines.append("")
     lines += ["## Registry coverage", "",
-              "Active repos with no open registry item. For each, decide in a Second Brain session: capture a commitment,"
+              "Active repos with no open registry item. For each, decide in a Plainbrain session: capture a commitment,"
               " set `track: ongoing` on its card (a steady stream of tickets; each one you own becomes its own registry"
               " task), or set `track: no` (maintenance only, nothing owed).", ""]
     for area, r in gaps:

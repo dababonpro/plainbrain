@@ -1,4 +1,4 @@
-"""Deny agent edits to the Second Brain INBOX.md. Reads, capture, and inbox-drop stay allowed."""
+"""Deny agent edits to the Plainbrain INBOX.md. Reads, capture, and inbox-drop stay allowed."""
 import json
 import re
 import sys
@@ -85,7 +85,7 @@ def _mentions_inbox(command: str, cwd: str) -> bool:
         return False
     if INBOX_KEY in _norm(lowered):
         return True
-    # A bare INBOX.md counts when the shell runs in Second Brain, or when the folder is unknown.
+    # A bare INBOX.md counts when the shell runs in Plainbrain, or when the folder is unknown.
     return not cwd or _norm(cwd).rstrip("/") == ROOT_KEY
 
 
