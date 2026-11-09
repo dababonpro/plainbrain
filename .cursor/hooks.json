@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "command": "python scripts/inbox_guard.py",
+        "matcher": "Write|StrReplace|Delete|EditNotebook",
+        "timeout": 5
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "python scripts/inbox_guard.py",
+        "matcher": "INBOX\\.md",
+        "timeout": 5
+      }
+    ]
+  }
+}

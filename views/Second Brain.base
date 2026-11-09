@@ -1,0 +1,84 @@
+filters:
+  and:
+    - file.ext == "md"
+    - file.hasProperty("para")
+properties:
+  file.name:
+    displayName: Note
+  note.type:
+    displayName: Type
+  note.para:
+    displayName: PARA
+  note.status:
+    displayName: Status
+  note.recorded:
+    displayName: Recorded
+  note.related_items:
+    displayName: Commitments
+  note.role:
+    displayName: Role
+  note.organisation:
+    displayName: Organisation
+views:
+  - type: table
+    name: Projects
+    filters:
+      and:
+        - note.para == "project"
+    order:
+      - file.name
+      - type
+      - status
+      - recorded
+      - related_items
+  - type: table
+    name: Areas
+    filters:
+      and:
+        - note.para == "area"
+        - note.type != "person"
+    order:
+      - file.name
+      - type
+      - status
+      - recorded
+  - type: table
+    name: Resources
+    filters:
+      and:
+        - note.para == "resource"
+    order:
+      - file.name
+      - type
+      - status
+      - recorded
+  - type: table
+    name: Archive
+    filters:
+      and:
+        - note.para == "archive"
+    order:
+      - file.name
+      - type
+      - status
+      - recorded
+  - type: table
+    name: People
+    filters:
+      and:
+        - note.type == "person"
+    order:
+      - file.name
+      - role
+      - organisation
+      - recorded
+  - type: table
+    name: Superseded
+    filters:
+      and:
+        - note.status == "superseded"
+    order:
+      - file.name
+      - type
+      - para
+      - recorded
