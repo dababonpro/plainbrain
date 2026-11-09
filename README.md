@@ -48,13 +48,24 @@ The MCP server in `scripts/mcp_server.py` lets an agent working in any other fol
 
 It works on one folder: the one named by the `BRAIN_ROOT` environment variable, or, when that is not set, the folder the script sits in. Point it at your own copy, the folder where you ran `init`, never at a second clone you keep for updates.
 
-Claude Code, for every project on this computer:
+Replace `C:/path/to/my-plainbrain` with your folder in each example.
+
+**Codex**, in `~/.codex/config.toml` (the app and the terminal share it):
+
+```toml
+[mcp_servers.plainbrain]
+command = "python"
+args = ["C:/path/to/my-plainbrain/scripts/mcp_server.py"]
+env = { BRAIN_ROOT = "C:/path/to/my-plainbrain" }
+```
+
+**Claude Code**, for every project on this computer:
 
 ```text
 claude mcp add plainbrain --scope user -e BRAIN_ROOT=C:/path/to/my-plainbrain -- python C:/path/to/my-plainbrain/scripts/mcp_server.py
 ```
 
-Cursor, in `~/.cursor/mcp.json`:
+**Cursor** (`~/.cursor/mcp.json`) and **Antigravity** (`~/.gemini/config/mcp_config.json`, or in the app **Customizations → Installed → MCP Servers**) use the same JSON:
 
 ```json
 {
