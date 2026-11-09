@@ -10,7 +10,16 @@ Free from DababonPro IT Solutions. It works on its own; [Obsidian](https://obsid
 
 Needs Python 3.11 or later. Obsidian is optional.
 
-Click **Use this template** to make your own copy, private if you like, then clone that:
+1. Click **Use this template** to make your own copy, private if you like.
+2. Get it onto your computer: **Code → Open with GitHub Desktop**, or ask your agent *"Clone https://github.com/<you>/<your-copy> into a folder called my-plainbrain"*.
+3. Open that folder in Claude Code, Codex, Cursor or Antigravity and say:
+
+   > Set up Plainbrain
+
+   The agent installs what it needs, creates your files and shows you today's brief. It may ask before it runs each command.
+
+<details>
+<summary>Prefer the terminal?</summary>
 
 ```text
 git clone https://github.com/<you>/<your-copy> my-plainbrain
@@ -20,6 +29,8 @@ python scripts/brain.py init --root .
 python scripts/brain.py capture --root . --repo setup --text "Try the daily brief"
 python scripts/brain.py brief --root .
 ```
+
+</details>
 
 `init` creates `REGISTRY.md`, `INBOX.md` and `CONTEXT.md`, with one example commitment. It changes nothing if they already exist. The brief is written to `reviews/daily/<date>.md`.
 
@@ -61,13 +72,14 @@ Use the Python that has `requirements.txt` installed. To check the setup, ask th
 
 ## Daily use
 
-| You want to | Run |
-|---|---|
-| Note something on your mind | `capture --text "..."` |
-| See what to do today | `brief`, then `board` for a page you can open in a browser |
-| Find something | `search --query "words"`, or ask your agent |
-| Review the week | `review`, then go through the inbox |
-| Check your notes for gaps | `research --source knowledge` |
+| You want to | Say to your agent | Or run |
+|---|---|---|
+| Note something on your mind | *"Capture: call the dentist on Monday"* | `capture --text "..."` |
+| See what to do today | *"Brief"* | `brief`, then `board` for a page you can open in a browser |
+| Find something | *"What do I know about pricing?"* | `search --query "words"` |
+| Keep something worth finding again | *"Add a note on our pricing decision"* | |
+| Review the week | *"Weekly review"* | `review`, then go through the inbox |
+| Check your notes for gaps | *"Review my notes"* | `research --source knowledge` |
 
 Every command takes `--root .`. Agents follow `AGENTS.md`, and use the skills in `.claude/skills/` and `.agents/skills/`: knowledge retrieval, note creation, note update and the guided researcher.
 
