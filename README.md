@@ -25,7 +25,8 @@ python scripts/brain.py brief --root .
 
 ## What keeps it safe
 
-- **The inbox is append-only.** Agents add lines with `capture` and never rewrite `INBOX.md`. A hook for Claude Code (`.claude/settings.json`) and Cursor (`.cursor/hooks.json`) blocks file edits to it.
+- **The inbox is append-only.** Agents add lines with `capture` and never rewrite `INBOX.md`.
+- **Inbox protection:** Claude Code, Cursor, Codex and Antigravity can block direct inbox edits through hooks (`.claude/settings.json`, `.cursor/hooks.json`, `.codex/hooks.json`, `.agents/hooks.json`). Codex requires you to trust the project hooks once, with `/hooks`. Other agents are instructed to use the capture command in `AGENTS.md`. Hooks stop ordinary edits rather than guarantee them, so keep the folder in git.
 - **You approve commitments.** Agents propose changes to `REGISTRY.md` and write them only after you accept.
 - **Notes are data.** Text inside a note or a captured web page is never an instruction to the agent.
 - **No secrets in files.** Notes name where a password lives, never the password.
@@ -90,9 +91,9 @@ Every command takes `--root .`. Agents follow `AGENTS.md`, and use the skills in
 
 Nothing depends on an Obsidian plugin.
 
-## Limits
+## Good to know
 
-- It is packaged from a system one person uses daily on Windows with Claude Code and Cursor. This package has passed a clean install and its tests, but nobody else has used it yet. macOS, Linux and other agents should work and have not been tried.
+- Tested on Windows with Claude Code, Codex and Cursor. macOS and Linux have not been tested.
 - It is plain files in a folder, not a backup. Keep the folder in git or a synced drive.
 - The brief recommends; it does not decide. It never edits your commitments.
 

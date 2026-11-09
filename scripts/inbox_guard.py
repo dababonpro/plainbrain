@@ -1,4 +1,8 @@
-"""Deny agent edits to the Plainbrain INBOX.md. Reads, capture, and inbox-drop stay allowed."""
+"""Deny agent edits to the Plainbrain INBOX.md. Reads, capture, and inbox-drop stay allowed.
+
+Speaks the hook formats of Claude Code and Codex (PreToolUse), Cursor (preToolUse and beforeShellExecution)
+and Antigravity (PreToolUse with toolCall). Codex file edits arrive as apply_patch text, so the patch's file
+headers are read as paths."""
 import json
 import re
 import sys
@@ -16,9 +20,12 @@ WRITE_TOOLS = {
     "notebookedit",
     "tabwrite",
     "applypatch",
+    "writetofile",
+    "replacefilecontent",
+    "multireplacefilecontent",
 }
 READ_TOOLS = {"read", "grep", "glob", "semanticsearch", "tabread"}
-SHELL_TOOLS = {"bash", "powershell", "shell", "runterminalcmd", "terminal"}
+SHELL_TOOLS = {"bash", "powershell", "shell", "runterminalcmd", "terminal", "runcommand", "execcommand"}
 
 _HOME = INBOX.parent.as_posix()
 REASON = (
@@ -28,7 +35,9 @@ REASON = (
     f'Remove an accepted triage line with: python {_HOME}/scripts/brain.py inbox-drop --root {_HOME} --line "<exact line>"'
 )
 
-_PATH_KEYS = {"path", "file_path", "filepath", "target_file", "file", "notebook_path"}
+_PATH_KEYS = {"path", "file_path", "filepath", "target_file", "targetfile", "file", "notebook_path"}
+# File headers in a Codex apply_patch body: Add, Update, Delete, and the target of a move.
+_PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+?)\s*$", re.MULTILINE)
 _WRITE_WORDS = re.compile(
     r"\b(set-content|out-file|add-content|clear-content|remove-item|copy-item|move-item|"
     r"del|erase|rm|cp|mv|copy|move|ren|tee|truncate)\b"
@@ -145,9 +154,27 @@ def _shell(command: str, claude: bool, cwd: str) -> dict:
     return allow
 
 
+def _antigravity(payload: dict, call: dict) -> dict:
+    """Antigravity sends toolCall.name and toolCall.args, and reads a decision of allow or deny."""
+    name = str(call.get("name") or "")
+    args = call.get("args") if isinstance(call.get("args"), dict) else {}
+    roots = payload.get("workspacePaths")
+    cwd = args.get("Cwd") if isinstance(args.get("Cwd"), str) else ""
+    if not cwd and isinstance(roots, list) and len(roots) == 1 and isinstance(roots[0], str):
+        cwd = roots[0]
+    tool_input = {"command": args["CommandLine"]} if isinstance(args.get("CommandLine"), str) else args
+    verdict = decide({"hook_event_name": "PreToolUse", "tool_name": name, "tool_input": tool_input, "cwd": cwd})
+    if verdict.get("hookSpecificOutput", {}).get("permissionDecision") == "deny":
+        return {"decision": "deny", "reason": REASON}
+    return {"decision": "allow"}
+
+
 def decide(payload: dict) -> dict:
     if not isinstance(payload, dict):
         return {"permission": "allow"}
+    call = payload.get("toolCall")
+    if isinstance(call, dict):
+        return _antigravity(payload, call)
     claude = payload.get("hook_event_name") == "PreToolUse"
     cwd = _cwd(payload)
     command = payload.get("command")
@@ -159,6 +186,9 @@ def decide(payload: dict) -> dict:
         return _shell(tool_input["command"], claude, cwd)
     found: list[str] = []
     _paths(payload, found)
+    patch = tool_input.get("command") if isinstance(tool_input, dict) else None
+    if isinstance(patch, str) and "*** Begin Patch" in patch:
+        found.extend(match.group(1) for match in _PATCH_FILE.finditer(patch))
     if not any(_is_inbox(path, cwd) for path in found):
         return {} if claude else {"permission": "allow"}
     if tool in READ_TOOLS:
@@ -180,10 +210,11 @@ def main() -> int:
         payload = {}
     result = decide(payload)
     sys.stdout.write(json.dumps(result))
-    denied = result.get("permission") == "deny" or (
+    denied = result.get("permission") == "deny" or result.get("decision") == "deny" or (
         result.get("hookSpecificOutput", {}).get("permissionDecision") == "deny"
     )
-    if denied and payload.get("hook_event_name") == "PreToolUse":
+    # Antigravity reads the JSON decision; a non-zero exit could count as a failed hook, so only the others get exit 2.
+    if denied and payload.get("hook_event_name") == "PreToolUse" and "toolCall" not in payload:
         print(REASON, file=sys.stderr)
         return 2
     return 0
