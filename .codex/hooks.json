@@ -1,5 +1,5 @@
 {
-  "description": "Plainbrain: keep the inbox append-only. Trust this hook once with /hooks.",
+  "description": "Plainbrain: keep the inbox append-only. Trust this hook once in Settings > Hooks, or /hooks in the terminal.",
   "hooks": {
     "PreToolUse": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python scripts/inbox_guard.py",
+            "command": "python -c \"import os,runpy;p=next(c for c in ('scripts/inbox_guard.py','../scripts/inbox_guard.py') if os.path.exists(c));runpy.run_path(p,run_name='__main__')\"",
             "statusMessage": "Checking the inbox rule",
             "timeout": 10
           }
