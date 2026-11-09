@@ -10,8 +10,10 @@ Free from DababonPro IT Solutions. It works on its own; [Obsidian](https://obsid
 
 Needs Python 3.11 or later. Obsidian is optional.
 
+Click **Use this template** to make your own copy, private if you like, then clone that:
+
 ```text
-git clone https://github.com/dababonpro/plainbrain my-plainbrain
+git clone https://github.com/<you>/<your-copy> my-plainbrain
 cd my-plainbrain
 python -m pip install -r requirements.txt
 python scripts/brain.py init --root .
