@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-labelledby="t d">
+  <title id="t">Plainbrain</title>
+  <desc id="d">Social preview: commitments, an inbox and notes in plain Markdown files feed one daily brief.</desc>
+  <rect width="1280" height="640" fill="#f5f2ea"/>
+  <g stroke="#161816" stroke-opacity="0.05">
+    <path d="M0 64H1280M0 128H1280M0 192H1280M0 256H1280M0 320H1280M0 384H1280M0 448H1280M0 512H1280M0 576H1280"/>
+    <path d="M64 0V640M128 0V640M192 0V640M256 0V640M320 0V640M384 0V640M448 0V640M512 0V640M576 0V640M640 0V640M704 0V640M768 0V640M832 0V640M896 0V640M960 0V640M1024 0V640M1088 0V640M1152 0V640M1216 0V640"/>
+  </g>
+
+  <g font-family="'IBM Plex Sans', 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="96" y="196" font-size="22" font-weight="500" fill="#6b655b">Free · Markdown files · Any AI agent</text>
+    <text x="96" y="300" font-size="96" font-weight="500" fill="#161816" letter-spacing="-3">Plainbrain</text>
+    <text x="96" y="370" font-size="28" fill="#4a463f">A second brain in plain files,</text>
+    <text x="96" y="410" font-size="28" fill="#4a463f">run by your agent, approved by you.</text>
+    <text x="96" y="548" font-size="20" fill="#6b655b">DababonPro IT Solutions · CC BY 4.0 and MIT</text>
+  </g>
+
+  <!-- Three files feed one brief, along the site's process line -->
+  <g font-family="'IBM Plex Mono', Consolas, monospace" font-size="17" fill="#161816">
+    <g>
+      <rect x="760" y="140" width="200" height="84" rx="12" fill="#fbfaf4" stroke="#161816"/>
+      <text x="784" y="176">REGISTRY.md</text>
+      <text x="784" y="204" fill="#6b655b" font-size="15">what you owe</text>
+    </g>
+    <g>
+      <rect x="760" y="268" width="200" height="84" rx="12" fill="#fbfaf4" stroke="#161816"/>
+      <text x="784" y="304">INBOX.md</text>
+      <text x="784" y="332" fill="#6b655b" font-size="15">append-only</text>
+    </g>
+    <g>
+      <rect x="760" y="396" width="200" height="84" rx="12" fill="#fbfaf4" stroke="#161816"/>
+      <text x="784" y="432">knowledge/</text>
+      <text x="784" y="460" fill="#6b655b" font-size="15">what you know</text>
+    </g>
+  </g>
+  <path d="M960 182H1010V438H960M960 310H1010" fill="none" stroke="#161816" stroke-width="1.5"/>
+  <path d="M1010 310H1064" stroke="#161816" stroke-width="1.5"/>
+  <circle cx="1010" cy="310" r="6" fill="#8cc20a" stroke="#161816"/>
+  <g>
+    <rect x="1064" y="250" width="132" height="120" rx="12" fill="#161816"/>
+    <text x="1084" y="292" font-family="'IBM Plex Sans', 'Segoe UI', Arial, sans-serif" font-size="20" font-weight="500" fill="#fbfaf4">Daily</text>
+    <text x="1084" y="320" font-family="'IBM Plex Sans', 'Segoe UI', Arial, sans-serif" font-size="20" font-weight="500" fill="#fbfaf4">brief</text>
+    <circle cx="1166" cy="344" r="9" fill="#8cc20a"/>
+    <path d="M1161 344l3.5 3.5 6.5-7" fill="none" stroke="#161816" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
