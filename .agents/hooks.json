@@ -1,0 +1,16 @@
+{
+  "plainbrain-inbox-guard": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import os,runpy;p=next(c for c in ('scripts/inbox_guard.py','../scripts/inbox_guard.py') if os.path.exists(c));runpy.run_path(p,run_name='__main__')\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

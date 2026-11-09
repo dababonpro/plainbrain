@@ -1,0 +1,18 @@
+{
+  "description": "Plainbrain: keep the inbox append-only. Trust this hook once with /hooks.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python scripts/inbox_guard.py",
+            "statusMessage": "Checking the inbox rule",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
