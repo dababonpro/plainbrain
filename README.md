@@ -116,9 +116,28 @@ Every command takes `--root .`. Agents follow `AGENTS.md`, and use the skills in
 
 Nothing depends on an Obsidian plugin.
 
+## Which agents
+
+Agents work with Plainbrain in one of two ways:
+
+- **Enforced:** a hook blocks direct edits to `INBOX.md`, so the inbox stays append-only even if the agent forgets the rule.
+- **Instructed:** the agent reads `AGENTS.md` and follows its rules, but nothing stops a direct edit. Keep the folder in git.
+
+| Agent | How | Files it uses | Checked |
+|---|---|---|---|
+| Claude Code | Enforced | `.claude/settings.json`, `.claude/skills/` | Tried by hand on Windows, November 2026 |
+| Codex | Enforced, after you allow the hook once | `.codex/hooks.json`, `.agents/skills/` | Tried by hand on Windows, November 2026 |
+| Cursor | Enforced | `.cursor/hooks.json` | Tried by hand on Windows, November 2026 |
+| Antigravity | Enforced | `.agents/hooks.json`, `.agents/skills/` | Hook ships and has tests; not tried by hand yet |
+| Amp, goose, Jules, Zed | Instructed | `AGENTS.md` | Their docs say they read it automatically; not tried |
+| Gemini CLI | Instructed | `.gemini/settings.json` points it at `AGENTS.md` | From its docs; not tried. If you turned on trusted folders, trust this folder |
+| GitHub Copilot in VS Code | Instructed | `AGENTS.md`, with the `chat.useAgentsMdFile` setting on | From its docs; not tried |
+
+Zed reads only the first instructions file it finds, so it uses `AGENTS.md` only while the folder has no `.rules`, `.cursorrules` or similar file. Any other agent that reads `AGENTS.md` should work the same way.
+
 ## Good to know
 
-- **Compatibility:** the automated tests run on Windows, Linux and macOS for every change. Setup with an AI agent was tried by hand on Windows with Codex, Claude Code and Cursor; other agents, and agent setup on Linux and macOS, may work but have not been tried.
+- **Compatibility:** the automated tests run on Windows, Linux and macOS for every change. Agent setup has been tried by hand only on Windows; see [Which agents](#which-agents).
 - It is plain files in a folder, not a backup. Keep the folder in git or a synced drive.
 - The brief recommends; it does not decide. It never edits your commitments.
 
