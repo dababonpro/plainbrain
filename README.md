@@ -95,6 +95,9 @@ Use the Python that has `requirements.txt` installed. To check the setup, ask th
 | Keep something worth finding again | *"Add a note on our pricing decision"* | |
 | Review the week | *"Weekly review"* | `review`, then go through the inbox |
 | Check your notes for gaps | *"Review my notes"* | `research --source knowledge` |
+| Get the latest version | *"Update Plainbrain"* | `git pull --ff-only`, then `python -m pip install -r requirements.txt` |
+
+Updating never touches your commitments, inbox, notes you added or generated reviews, because git does not track them. It stops if you edited one of Plainbrain's own files, such as an example note. A copy made with **Use this template** has its own history, so it cannot pull updates this way.
 
 Every command takes `--root .`. Agents follow `AGENTS.md`, and use the skills in `.claude/skills/` and `.agents/skills/`: knowledge retrieval, note creation, note update and the guided researcher.
 
