@@ -10,13 +10,15 @@ Free from DababonPro IT Solutions. It works on its own; [Obsidian](https://obsid
 
 Needs Python 3.11 or later. Obsidian is optional.
 
-1. Click **Use this template** to make your own copy, private if you like.
-2. Get it onto your computer: **Code → Open with GitHub Desktop**, or ask your agent *"Clone https://github.com/<you>/<your-copy> into a folder called my-plainbrain"*.
-3. Open that folder in Claude Code, Codex, Cursor or Antigravity and say:
+Paste this into Claude Code, Codex, Cursor or Antigravity:
 
-   > Set up Plainbrain
+```text
+Install Plainbrain, a second brain in plain Markdown files, for me. First check that Python 3.11 or newer and git are installed; if one is missing, tell me how to install it and stop. Then suggest where to put it (a new folder called my-plainbrain in my Documents folder) and ask me to confirm before you change anything. Never overwrite an existing folder. Once I confirm, clone https://github.com/dababonpro/plainbrain into it and follow its AGENTS.md to set it up: install the requirements, create my files, and show me today's brief.
+```
 
-   The agent installs what it needs, creates your files and shows you today's brief. It may ask before it runs each command.
+The agent checks what you need, asks once where to put Plainbrain, then sets it up and shows your first brief.
+
+**Want a private, backed-up copy instead?** Click **Use this template** to make your own copy on GitHub, and give your agent that address in place of `dababonpro/plainbrain`.
 
 <details>
 <summary>Prefer the terminal?</summary>
