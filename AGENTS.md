@@ -26,7 +26,7 @@ Rules for any AI agent working in this folder. This folder is the owner's second
 
 | Ask | Do |
 |---|---|
-| "Set up Plainbrain" | Run `python -m pip install -r requirements.txt`, then `init`, then `brief` and `board`. Summarise the brief, and say that `init` changes nothing if the files already exist |
+| "Set up Plainbrain" | Run `python -m pip install -r requirements.txt`, then `init`, then `brief` and `board`. Summarise the brief, and say that `init` changes nothing if the files already exist. If Python or git was just installed and still is not found, ask the owner to restart you or open a new chat |
 | "Capture: ..." | Run `capture` with the text as given |
 | "The day" or "brief" | Run `brief`, then `board`, and summarise `reviews/daily/<date>.md` |
 | "What do I know about X?" | Use the knowledge-retrieval skill |

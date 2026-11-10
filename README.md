@@ -13,10 +13,12 @@ Needs Python 3.11 or later. Obsidian is optional.
 Paste this into Claude Code, Codex, Cursor or Antigravity:
 
 ```text
-Install Plainbrain, a second brain in plain Markdown files, for me. First check that Python 3.11 or newer and git are installed; if one is missing, tell me how to install it and stop. Then suggest where to put it (a new folder called my-plainbrain in my Documents folder) and ask me to confirm before you change anything. Never overwrite an existing folder. Once I confirm, clone https://github.com/dababonpro/plainbrain into it and follow its AGENTS.md to set it up: install the requirements, create my files, and show me today's brief.
+Install Plainbrain, a second brain in plain Markdown files, for me. First check that Python 3.11 or newer and git are installed; if one is missing, tell me how to install it, remind me to restart you or open a new chat afterwards so you can find it, and stop. Then suggest where to put it (a new folder called my-plainbrain in my Documents folder) and ask me to confirm before you change anything. Never overwrite an existing folder. Once I confirm, clone https://github.com/dababonpro/plainbrain into it and follow its AGENTS.md to set it up: install the requirements, create my files, and show me today's brief.
 ```
 
 The agent checks what you need, asks once where to put Plainbrain, then sets it up and shows your first brief.
+
+If the agent asks you to install Python or Git, restart the agent (or open a new chat) once it is installed, then paste the prompt again. Until then the agent cannot see the new install.
 
 **Want a private, backed-up copy instead?** Click **Use this template** to make your own copy on GitHub, and give your agent that address in place of `dababonpro/plainbrain`.
 
