@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -238,7 +239,8 @@ def test_capture_refuses_a_root_that_is_not_plainbrain(tmp_path):
     with pytest.raises(CaptureError):
         capture_line(empty, "demo", "lost line", "2026-10-21")
     assert not (empty / "INBOX.md").exists()
-    with pytest.raises(CaptureError, match="drive-relative"):
+    # Only Windows has drive-relative paths; elsewhere "C:Plainbrain" is a plain relative folder that is refused too.
+    with pytest.raises(CaptureError, match="drive-relative" if os.name == "nt" else "not a"):
         capture_line(Path("C:Plainbrain"), "demo", "lost line", "2026-10-21")
     with pytest.raises(CaptureError):
         drop_lines(missing, contains=["x"])
