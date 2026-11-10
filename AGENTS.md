@@ -27,6 +27,7 @@ Rules for any AI agent working in this folder. This folder is the owner's second
 | Ask | Do |
 |---|---|
 | "Set up Plainbrain" | Run `python -m pip install -r requirements.txt`, then `init`, then `brief` and `board`. Summarise the brief, and say that `init` changes nothing if the files already exist. If Python or git was just installed and still is not found, ask the owner to restart you or open a new chat |
+| "Update Plainbrain" | Run `git status`. Untracked files are the owner's (`REGISTRY.md`, `INBOX.md`, `CONTEXT.md`, `DASHBOARD.md`, `reviews/`, `board/`, their own notes) and a pull never touches them. If a tracked file shows as modified or deleted, such as an example note in `knowledge/`, stop and show it. Otherwise run `git pull --ff-only`, then `python -m pip install -r requirements.txt`, then `brief`. If the pull is refused, or `origin` is not `dababonpro/plainbrain` (a copy made with Use this template has its own history and cannot pull), stop and explain. Never delete, overwrite or commit the owner's files |
 | "Capture: ..." | Run `capture` with the text as given |
 | "The day" or "brief" | Run `brief`, then `board`, and summarise `reviews/daily/<date>.md` |
 | "What do I know about X?" | Use the knowledge-retrieval skill |
