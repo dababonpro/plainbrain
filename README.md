@@ -118,7 +118,7 @@ Nothing depends on an Obsidian plugin.
 
 ## Good to know
 
-- **Compatibility:** tested on Windows with Codex, Claude Code and Cursor. Other operating systems and AI agents may work, but have not been tested.
+- **Compatibility:** the automated tests run on Windows, Linux and macOS for every change. Setup with an AI agent was tried by hand on Windows with Codex, Claude Code and Cursor; other agents, and agent setup on Linux and macOS, may work but have not been tried.
 - It is plain files in a folder, not a backup. Keep the folder in git or a synced drive.
 - The brief recommends; it does not decide. It never edits your commitments.
 
