@@ -26,7 +26,7 @@ Rules for any AI agent working in this folder. This folder is the owner's second
 
 | Ask | Do |
 |---|---|
-| "Set up Plainbrain" | Run `python -m pip install -r requirements.txt`, then `init`, then `doctor`, then `brief` and `board`. If pip refuses to install (some systems protect their own Python), carry on: only the optional MCP server needs it. Tell the owner every `doctor` line that is not `ok`, in plain words, and what fixes it. Summarise the brief, and say that `init` changes nothing if the files already exist. If Python or git was just installed and still is not found, ask the owner to restart you or open a new chat |
+| "Set up Plainbrain" | Follow "First setup" below: `python -m pip install -r requirements.txt`, the three questions, `init`, the owner's commitments, then `doctor`, `brief` and `board`. If pip refuses to install (some systems protect their own Python), carry on: only the optional MCP server needs it. Tell the owner every `doctor` line that is not `ok`, in plain words, and what fixes it. Summarise the brief, and say that `init` changes nothing if the files already exist. If Python or git was just installed and still is not found, ask the owner to restart you or open a new chat |
 | "Update Plainbrain" | Run `git status`. Untracked files are the owner's (`REGISTRY.md`, `INBOX.md`, `CONTEXT.md`, `DASHBOARD.md`, `reviews/`, `board/`, their own notes) and a pull never touches them. If a tracked file shows as modified or deleted, such as an example note in `knowledge/`, stop and show it. Otherwise run `git pull --ff-only`, then `python -m pip install -r requirements.txt`, then `brief`. If the pull is refused, or `origin` is not `dababonpro/plainbrain` (a copy made with Use this template has its own history and cannot pull), stop and explain. Never delete, overwrite or commit the owner's files |
 | "Check Plainbrain" | Run `doctor` and report every line that is not `ok`. It changes nothing |
 | "Capture: ..." | Run `capture` with the text as given |
@@ -40,6 +40,27 @@ Rules for any AI agent working in this folder. This folder is the owner's second
 | "Triage the inbox" | Run `inbox`, propose one change per line, and apply each only after the owner accepts |
 
 If `python` is not found, use `python3` (or `py` on Windows) in every command here.
+
+## First setup
+
+The first brief is worth reading only when it holds the owner's own commitments. So before `init`, ask these three questions in one message, and say that each can be skipped:
+
+1. Which areas of life should it cover? (The default is Work and Personal.)
+2. What are up to three things you owe or keep meaning to do, and the next small step for each?
+3. About how much free time do you have on a normal day?
+
+Then:
+
+- **With at least one commitment:** run `init` with `--areas`, `--capacity` and `--no-example`. Add each commitment with `registry add`, using the owner's words for `title` and `next`, one of their areas, and `due` only when they gave a date. Ask which one matters most today and set it with `registry focus`. The owner stated these, so they count as accepted; pass `--why "stated at setup"`.
+- **With none:** run `init` with `--areas` and `--capacity` if given. It writes one example commitment to replace later.
+
+```text
+python scripts/brain.py init --root . --areas "Work, Home" --capacity "about 2 hours a day" --no-example
+python scripts/brain.py registry add --root . --id renew-passport --set "title=Renew my passport" --set "next=Book the appointment online" --set "area=Home" --why "stated at setup"
+python scripts/brain.py registry focus --root . --id renew-passport
+```
+
+Do not invent a commitment, a date or an area the owner did not give. If `init` reports that the files already exist, change nothing and go on to `doctor`. Finish with `doctor`, `brief` and `board`, and show the owner the brief's "Next hour" line.
 
 ## Changing commitments
 

@@ -28,6 +28,8 @@ from scripts.research import write_research
 from scripts.review import search_knowledge, write_review
 from scripts.rollup import write_rollup
 
+EMPTY_REGISTRY = "# Registry\n\nfocus:\n"
+
 STARTING_FILES = {
     "REGISTRY.md": """# Registry
 
@@ -65,19 +67,24 @@ Stable context the brief and the weekly review read. Keep it short and current.
 ## Roles and areas
 
 areas: {areas}
-capacity: Unknown
+capacity: {capacity}
 """,
 }
 
 
-def init(root: Path, areas: str) -> int:
+def init(root: Path, areas: str, capacity: str = "Unknown", example: bool = True) -> int:
+    """Create the owner's three files. With example=False the registry starts with no items, for an owner
+    who is about to add their own with `registry add`."""
     today = date.today().isoformat()
+    values = {"today": today, "areas": " ".join(areas.split()), "capacity": " ".join(capacity.split()) or "Unknown"}
     existing = [name for name in STARTING_FILES if (root / name).exists()]
     if existing:
         print("already set up, nothing changed: " + ", ".join(existing), file=sys.stderr)
         return 1
     for name, text in STARTING_FILES.items():
-        (root / name).write_text(text.format(today=today, areas=areas), encoding="utf-8", newline="\n")
+        if name == "REGISTRY.md" and not example:
+            text = EMPTY_REGISTRY
+        (root / name).write_text(text.format(**values), encoding="utf-8", newline="\n")
         print(f"wrote {name}")
     (root / "knowledge").mkdir(exist_ok=True)
     return 0
@@ -89,6 +96,8 @@ def main(argv=None) -> int:
     p = sub.add_parser("init", help="create the registry, inbox and context files")
     p.add_argument("--root", required=True)
     p.add_argument("--areas", default="Work, Personal")
+    p.add_argument("--capacity", default="Unknown", help="free time in the owner's words, such as 'about 2 hours a day'")
+    p.add_argument("--no-example", action="store_true", help="start with no example commitment")
     for name in ("brief", "board", "review", "inbox", "ingest", "doctor"):
         p = sub.add_parser(name)
         p.add_argument("--root", required=True)
@@ -125,7 +134,7 @@ def main(argv=None) -> int:
 
     root = Path(args.root)
     if args.cmd == "init":
-        return init(root, args.areas)
+        return init(root, args.areas, args.capacity, not args.no_example)
     if args.cmd == "search":
         return search_knowledge(root, args.query)
     today = getattr(args, "today", None) or date.today().isoformat()

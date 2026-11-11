@@ -16,7 +16,7 @@ Paste this into Claude Code, Codex, Cursor or Antigravity:
 Install Plainbrain, a second brain in plain Markdown files, for me. First check that Python 3.11 or newer and git are installed; if one is missing, tell me how to install it, remind me to restart you or open a new chat afterwards so you can find it, and stop. Then suggest where to put it (a new folder called my-plainbrain in my Documents folder) and ask me to confirm before you change anything. Never overwrite an existing folder. Once I confirm, clone https://github.com/dababonpro/plainbrain into it and follow its AGENTS.md to set it up: install the requirements, create my files, and show me today's brief.
 ```
 
-The agent checks what you need, asks once where to put Plainbrain, then sets it up and shows your first brief.
+The agent checks what you need and asks once where to put Plainbrain. It then asks for your areas, up to three things you owe and how much free time you have, so your first brief is about your own commitments. You can skip any of them.
 
 If the agent asks you to install Python or Git, restart the agent (or open a new chat) once it is installed, then paste the prompt again. Until then the agent cannot see the new install.
 
@@ -39,7 +39,43 @@ On macOS and Linux the command is usually `python3`. If pip refuses to install, 
 
 </details>
 
-`init` creates `REGISTRY.md`, `INBOX.md` and `CONTEXT.md`, with one example commitment. It changes nothing if they already exist. The brief is written to `reviews/daily/<date>.md`.
+`init` creates `REGISTRY.md`, `INBOX.md` and `CONTEXT.md`, with one example commitment. Add `--no-example` to start with none, and `--areas` and `--capacity` to set those. It changes nothing if the files already exist. The brief is written to `reviews/daily/<date>.md`.
+
+## What a brief looks like
+
+After setup, "brief" writes a page like this from your own files. No AI model writes it, so it says only what the files say.
+
+```text
+# Brief 2026-11-11
+
+## Since yesterday
+- No previous brief.
+- renew-passport: Renew my passport (active)
+- q4-report: Send the Q4 report (active)
+
+## Blocked
+
+## Next hour
+Do this: Ask Sam for the sales figures
+
+## Left quiet
+active: 2
+waiting: 0
+someday: 0
+done: 0
+
+Capacity: about 2 hours a day.
+
+snapshot:
+inbox: 0
+focus: q4-report
+active: 2
+waiting: 0
+someday: 0
+done: 0
+```
+
+The line under "Next hour" is the next step of the commitment you chose as your focus. The `snapshot:` block is what the next brief compares against, so from the second day "Since yesterday" lists only what changed.
 
 ## What keeps it safe
 
