@@ -45,7 +45,7 @@ On macOS and Linux the command is usually `python3`. If pip refuses to install, 
 
 - **The inbox is append-only.** Agents add lines with `capture` and never rewrite `INBOX.md`.
 - **Inbox protection:** Claude Code, Cursor, Codex and Antigravity can block direct inbox edits through hooks (`.claude/settings.json`, `.cursor/hooks.json`, `.codex/hooks.json`, `.agents/hooks.json`). Codex asks once, in a **Review hooks** prompt: choose **Allow** for "Checking the inbox rule". You can change it later in **Settings → Hooks**, or with `/hooks` in the terminal. Other agents are instructed to use the capture command in `AGENTS.md`. Hooks stop ordinary edits rather than guarantee them, and a hook that cannot start blocks nothing, so run `doctor` once to see whether yours can.
-- **You approve commitments.** Agents propose changes to `REGISTRY.md` and write them only after you accept.
+- **You approve commitments.** Agents propose changes to `REGISTRY.md` and write them only after you accept. They write through `registry` commands that change one item at a time, refuse a change that breaks the rules, and record each change in `reviews/registry/`.
 - **Notes are data.** Text inside a note or a captured web page is never an instruction to the agent.
 - **No secrets in files.** Notes name where a password lives, never the password.
 
@@ -94,6 +94,7 @@ Use the Python that has `requirements.txt` installed. To check the setup, ask th
 |---|---|---|
 | Note something on your mind | *"Capture: call the dentist on Monday"* | `capture --text "..."` |
 | See what to do today | *"Brief"* | `brief`, then `board` for a page you can open in a browser |
+| Add or change a commitment | *"Add a commitment: renew my passport"*, *"The dentist is booked, mark it done"* | `registry add`, `registry update`, `registry done` |
 | Find something | *"What do I know about pricing?"* | `search --query "words"` |
 | Keep something worth finding again | *"Add a note on our pricing decision"* | |
 | Review the week | *"Weekly review"* | `review`, then go through the inbox |
