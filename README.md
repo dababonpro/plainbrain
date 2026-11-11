@@ -20,7 +20,7 @@ The agent checks what you need and asks once where to put Plainbrain. It then as
 
 If the agent asks you to install Python or Git, restart the agent (or open a new chat) once it is installed, then paste the prompt again. Until then the agent cannot see the new install.
 
-**Want a private, backed-up copy instead?** Click **Use this template** to make your own copy on GitHub, and give your agent that address in place of `dababonpro/plainbrain`.
+**Want a private, backed-up copy instead?** Click **Use this template** to make your own copy on GitHub, choose **Private** when GitHub asks, and give your agent that address in place of `dababonpro/plainbrain`. A public copy would show your commitments and notes to anyone once you save them to it.
 
 <details>
 <summary>Prefer the terminal?</summary>
