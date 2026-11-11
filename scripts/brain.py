@@ -4,6 +4,7 @@
     python scripts/brain.py capture --root . --repo my-website --text "one sentence"
     python scripts/brain.py brief --root .
     python scripts/brain.py doctor --root .
+    python scripts/brain.py registry update --root . --id my-item --set "next=Call the clinic"
 
 Every command reads and writes plain Markdown under --root. Nothing leaves the machine.
 """
@@ -20,6 +21,7 @@ from scripts.board import write_board
 from scripts.brief import write_brief
 from scripts.capture import CaptureError, capture_line, drop_lines, repo_view
 from scripts.doctor import run_doctor
+from scripts import registry
 from scripts.ingest import log_pairs, write_ingest
 from scripts.model import valid_date
 from scripts.research import write_research
@@ -91,6 +93,7 @@ def main(argv=None) -> int:
         p = sub.add_parser(name)
         p.add_argument("--root", required=True)
         p.add_argument("--today")
+    registry.add_parser(sub)
     p = sub.add_parser("capture")
     p.add_argument("--root", required=True)
     p.add_argument("--repo", required=True, help="the folder or project the line comes from")
@@ -143,7 +146,10 @@ def main(argv=None) -> int:
             for message in log_pairs(root, today, args.page, args.outcome, args.line, args.contains):
                 print(message)
             return 0
-    except CaptureError as exc:
+        if args.cmd == "registry":
+            print(registry.run(args, today))
+            return 0
+    except (CaptureError, registry.RegistryError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
     if args.cmd == "research":
