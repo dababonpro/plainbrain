@@ -88,3 +88,40 @@ def test_cli_brief(tmp_path: Path):
     )
     assert result.returncode == 0
     assert "Call the clinic and book a cleaning." in (dst / "DASHBOARD.md").read_text(encoding="utf-8")
+
+
+def _due_item(item_id, due, status="active"):
+    extra = "blocked_on: Sam\nfollow_up: 2026-12-20\n" if status == "waiting" else "blocked_on:\nfollow_up:\n"
+    return (f"## {item_id}\ntitle: Title of {item_id}\narea: Work\nkind: task\nstatus: {status}\nnext: Do it.\n"
+            f"{extra}pointer:\nopened: 2026-11-01\nupdated: 2026-11-01\noutcome:\nnotes:\ndue: {due}\n")
+
+
+def test_deadlines_lists_what_is_due_within_a_week_soonest_first(tmp_path):
+    from scripts.brief import deadline_lines, write_brief
+    from scripts.model import parse_registry
+    text = "# Registry\n\nfocus:\n\n" + "\n".join([
+        _due_item("far-away", "2026-12-25"), _due_item("this-week", "2026-11-14"), _due_item("late", "2026-11-09"),
+        _due_item("today-item", "2026-11-11", "waiting"), _due_item("finished", "2026-11-10", "done"),
+        _due_item("no-date", ""),
+    ])
+    assert deadline_lines(parse_registry(text).items, "2026-11-11") == [
+        "- late: Title of late (due 2026-11-09, 2 days overdue)",
+        "- today-item: Title of today-item (due 2026-11-11, today)",
+        "- this-week: Title of this-week (due 2026-11-14, in 3 days)",
+    ]
+    (tmp_path / "REGISTRY.md").write_text(text, encoding="utf-8")
+    assert write_brief(tmp_path, "2026-11-11") == 0
+    brief = (tmp_path / "reviews" / "daily" / "2026-11-11.md").read_text(encoding="utf-8")
+    assert "## Deadlines\n- late: Title of late (due 2026-11-09, 2 days overdue)\n" in brief
+    assert "far-away" not in brief.split("## Deadlines")[1].split("##")[0]
+
+
+def test_no_deadlines_section_without_a_due_date_and_the_snapshot_is_explained(tmp_path):
+    from scripts.brief import write_brief
+    from scripts.model import snapshot_inbox
+    (tmp_path / "REGISTRY.md").write_text("# Registry\n\nfocus:\n\n" + _due_item("no-date", ""), encoding="utf-8")
+    assert write_brief(tmp_path, "2026-11-11") == 0
+    brief = (tmp_path / "reviews" / "daily" / "2026-11-11.md").read_text(encoding="utf-8")
+    assert "## Deadlines" not in brief
+    assert "## For the next brief\nThe next brief compares itself against these lines." in brief
+    assert snapshot_inbox(brief) == 0

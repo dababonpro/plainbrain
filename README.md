@@ -66,6 +66,9 @@ done: 0
 
 Capacity: about 2 hours a day.
 
+## For the next brief
+The next brief compares itself against these lines. Leave them as they are.
+
 snapshot:
 inbox: 0
 focus: q4-report
@@ -75,7 +78,7 @@ someday: 0
 done: 0
 ```
 
-The line under "Next hour" is the next step of the commitment you chose as your focus. The `snapshot:` block is what the next brief compares against, so from the second day "Since yesterday" lists only what changed.
+The line under "Next hour" is the next step of the commitment you chose as your focus. From the second day "Since yesterday" lists only what changed. A commitment with a `due` date appears under a "Deadlines" heading once the date is within a week or has passed.
 
 ## What keeps it safe
 

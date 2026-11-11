@@ -18,6 +18,9 @@ done: 1
 
 Capacity is unknown.
 
+## For the next brief
+The next brief compares itself against these lines. Leave them as they are.
+
 snapshot:
 inbox: 0
 focus: hold

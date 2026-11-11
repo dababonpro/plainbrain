@@ -88,6 +88,37 @@ def since_lines(
     return lines
 
 
+DEADLINE_DAYS = 7
+
+
+def deadline_lines(items: list[Item], today: str, days: int = DEADLINE_DAYS) -> list[str]:
+    """Open items whose `due` date has passed or falls within `days`, soonest first."""
+    now = date.fromisoformat(today)
+    found: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for item in items:
+        due = item.fields.get("due", "").strip()
+        if item.reason is not None or item.id in seen or item.fields.get("status", "").strip() == "done":
+            continue
+        seen.add(item.id)
+        if DATE_RE.fullmatch(due) is None:
+            continue
+        try:
+            left = (date.fromisoformat(due) - now).days
+        except ValueError:
+            continue
+        if left > days:
+            continue
+        if left < 0:
+            when = f"{-left} day{'s' if left != -1 else ''} overdue"
+        elif left == 0:
+            when = "today"
+        else:
+            when = f"in {left} day{'s' if left != 1 else ''}"
+        found.append((due, f"- {item.id}: {item.fields.get('title', '').strip()} (due {due}, {when})"))
+    return [line for _due, line in sorted(found)]
+
+
 def blocked_lines(items: list[Item], today: str) -> list[str]:
     lines: list[str] = []
     seen: set[str] = set()
@@ -351,6 +382,7 @@ def render_brief(
     clashes: list[str] | None = None,
     unshipped: list[str] | None = None,
     resolved: list[str] | None = None,
+    deadlines: list[str] | None = None,
 ) -> str:
     focus_line = f"focus: {focus}" if focus else "focus:"
     notices = notices or []
@@ -368,6 +400,8 @@ def render_brief(
         *blocked,
         "",
     ])
+    if deadlines:
+        lines.extend(["## Deadlines", *deadlines, ""])
     if clashes:
         lines.extend(["## Inbox clashes", *clashes, ""])
     if resolved:
@@ -386,6 +420,9 @@ def render_brief(
         f"done: {totals['done']}",
         "",
         capacity,
+        "",
+        "## For the next brief",
+        "The next brief compares itself against these lines. Leave them as they are.",
         "",
         "snapshot:",
         f"inbox: {inbox_count}",
@@ -498,7 +535,7 @@ def write_brief(root: Path, today: str) -> int:
         daily / f"{today}.md",
         render_brief(
             today, since, blocked, action, totals, capacity, inbox_count, doc.focus, notices, clashes, unshipped,
-            resolved,
+            resolved, deadline_lines(doc.items, today),
         ),
     )
     _write(root / "DASHBOARD.md", render_dashboard(today, action, len(blocked), since, notices, len(clashes),
