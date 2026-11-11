@@ -26,8 +26,9 @@ Rules for any AI agent working in this folder. This folder is the owner's second
 
 | Ask | Do |
 |---|---|
-| "Set up Plainbrain" | Run `python -m pip install -r requirements.txt`, then `init`, then `brief` and `board`. Summarise the brief, and say that `init` changes nothing if the files already exist. If Python or git was just installed and still is not found, ask the owner to restart you or open a new chat |
+| "Set up Plainbrain" | Run `python -m pip install -r requirements.txt`, then `init`, then `doctor`, then `brief` and `board`. If pip refuses to install (some systems protect their own Python), carry on: only the optional MCP server needs it. Tell the owner every `doctor` line that is not `ok`, in plain words, and what fixes it. Summarise the brief, and say that `init` changes nothing if the files already exist. If Python or git was just installed and still is not found, ask the owner to restart you or open a new chat |
 | "Update Plainbrain" | Run `git status`. Untracked files are the owner's (`REGISTRY.md`, `INBOX.md`, `CONTEXT.md`, `DASHBOARD.md`, `reviews/`, `board/`, their own notes) and a pull never touches them. If a tracked file shows as modified or deleted, such as an example note in `knowledge/`, stop and show it. Otherwise run `git pull --ff-only`, then `python -m pip install -r requirements.txt`, then `brief`. If the pull is refused, or `origin` is not `dababonpro/plainbrain` (a copy made with Use this template has its own history and cannot pull), stop and explain. Never delete, overwrite or commit the owner's files |
+| "Check Plainbrain" | Run `doctor` and report every line that is not `ok`. It changes nothing |
 | "Capture: ..." | Run `capture` with the text as given |
 | "The day" or "brief" | Run `brief`, then `board`, and summarise `reviews/daily/<date>.md` |
 | "What do I know about X?" | Use the knowledge-retrieval skill |
@@ -36,6 +37,8 @@ Rules for any AI agent working in this folder. This folder is the owner's second
 | "Review my notes" | Use the guided-researcher skill, with `research --source knowledge` |
 | "Weekly review" | Run `review`, then go through the inbox one line at a time, proposing a commitment, a note or a drop for each |
 | "Triage the inbox" | Run `inbox`, propose one change per line, and apply each only after the owner accepts |
+
+If `python` is not found, use `python3` (or `py` on Windows) in every command here.
 
 ## Brief and board
 

@@ -3,6 +3,7 @@
     python scripts/brain.py init --root .
     python scripts/brain.py capture --root . --repo my-website --text "one sentence"
     python scripts/brain.py brief --root .
+    python scripts/brain.py doctor --root .
 
 Every command reads and writes plain Markdown under --root. Nothing leaves the machine.
 """
@@ -18,6 +19,7 @@ if str(ROOT) not in sys.path:
 from scripts.board import write_board
 from scripts.brief import write_brief
 from scripts.capture import CaptureError, capture_line, drop_lines, repo_view
+from scripts.doctor import run_doctor
 from scripts.ingest import log_pairs, write_ingest
 from scripts.model import valid_date
 from scripts.research import write_research
@@ -85,7 +87,7 @@ def main(argv=None) -> int:
     p = sub.add_parser("init", help="create the registry, inbox and context files")
     p.add_argument("--root", required=True)
     p.add_argument("--areas", default="Work, Personal")
-    for name in ("brief", "board", "review", "inbox", "ingest"):
+    for name in ("brief", "board", "review", "inbox", "ingest", "doctor"):
         p = sub.add_parser(name)
         p.add_argument("--root", required=True)
         p.add_argument("--today")
@@ -151,7 +153,7 @@ def main(argv=None) -> int:
             parser.error(str(exc))
         return 0
     return {"brief": write_brief, "board": write_board, "review": write_review, "inbox": write_rollup,
-            "ingest": write_ingest}[args.cmd](root, today)
+            "ingest": write_ingest, "doctor": run_doctor}[args.cmd](root, today)
 
 
 if __name__ == "__main__":

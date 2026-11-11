@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"$CLAUDE_PROJECT_DIR/scripts/inbox_guard.py\"",
+            "command": "G=\"$CLAUDE_PROJECT_DIR/scripts/inbox_guard.py\"; if command -v python >/dev/null 2>&1; then python \"$G\"; else python3 \"$G\"; fi",
             "timeout": 5
           }
         ]
