@@ -36,6 +36,7 @@ Rules for any AI agent working in this folder. This folder is the owner's second
 | "Add a note on X" | Use the note-creation skill |
 | "Update the note on X" | Use the note-update skill |
 | "Review my notes" | Use the guided-researcher skill, with `research --source knowledge` |
+| The owner says they will do something for someone or by a date, or asks "what did I promise?" | Use the promise-tracking skill: propose each promise as a commitment at a pause, and write only what they accept |
 | "Weekly review" | Run `review`, then go through the inbox one line at a time, proposing a commitment, a note or a drop for each |
 | "Triage the inbox" | Run `inbox`, propose one change per line, and apply each only after the owner accepts |
 

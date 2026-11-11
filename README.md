@@ -131,6 +131,7 @@ Use the Python that has `requirements.txt` installed. To check the setup, ask th
 | Note something on your mind | *"Capture: call the dentist on Monday"* | `capture --text "..."` |
 | See what to do today | *"Brief"* | `brief`, then `board` for a page you can open in a browser |
 | Add or change a commitment | *"Add a commitment: renew my passport"*, *"The dentist is booked, mark it done"* | `registry add`, `registry update`, `registry done` |
+| Keep a promise you made in passing | Say *"I'll send Sam the figures by Friday"* while working on something else | The agent proposes it as a commitment at the next pause; `registry add` after you accept |
 | Find something | *"What do I know about pricing?"* | `search --query "words"` |
 | Keep something worth finding again | *"Add a note on our pricing decision"* | |
 | Review the week | *"Weekly review"* | `review`, then go through the inbox |
@@ -140,7 +141,7 @@ Use the Python that has `requirements.txt` installed. To check the setup, ask th
 
 Updating never touches your commitments, inbox, notes you added or generated reviews, because git does not track them. It stops if you edited one of Plainbrain's own files, such as an example note. A copy made with **Use this template** has its own history, so it cannot pull updates this way.
 
-Every command takes `--root .`. Agents follow `AGENTS.md`, and use the skills in `.claude/skills/` and `.agents/skills/`: knowledge retrieval, note creation, note update and the guided researcher.
+Every command takes `--root .`. Agents follow `AGENTS.md`, and use the skills in `.claude/skills/` and `.agents/skills/`: knowledge retrieval, note creation, note update, the guided researcher and promise tracking.
 
 ## Three fields on every note
 
