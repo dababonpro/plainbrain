@@ -2,7 +2,7 @@
 
 To get a newer version, say "Update Plainbrain" to your agent. An update never touches your commitments, inbox or notes.
 
-## 1.1.1, unreleased
+## 1.1.1, 11 November 2026
 
 **New**
 
