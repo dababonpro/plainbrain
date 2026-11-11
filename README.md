@@ -32,7 +32,10 @@ python -m pip install -r requirements.txt
 python scripts/brain.py init --root .
 python scripts/brain.py capture --root . --repo setup --text "Try the daily brief"
 python scripts/brain.py brief --root .
+python scripts/brain.py doctor --root .
 ```
+
+On macOS and Linux the command is usually `python3`. If pip refuses to install, skip that line: only the optional MCP server needs it.
 
 </details>
 
@@ -41,7 +44,7 @@ python scripts/brain.py brief --root .
 ## What keeps it safe
 
 - **The inbox is append-only.** Agents add lines with `capture` and never rewrite `INBOX.md`.
-- **Inbox protection:** Claude Code, Cursor, Codex and Antigravity can block direct inbox edits through hooks (`.claude/settings.json`, `.cursor/hooks.json`, `.codex/hooks.json`, `.agents/hooks.json`). Codex asks once, in a **Review hooks** prompt: choose **Allow** for "Checking the inbox rule". You can change it later in **Settings → Hooks**, or with `/hooks` in the terminal. Other agents are instructed to use the capture command in `AGENTS.md`. Hooks stop ordinary edits rather than guarantee them, so keep the folder in git.
+- **Inbox protection:** Claude Code, Cursor, Codex and Antigravity can block direct inbox edits through hooks (`.claude/settings.json`, `.cursor/hooks.json`, `.codex/hooks.json`, `.agents/hooks.json`). Codex asks once, in a **Review hooks** prompt: choose **Allow** for "Checking the inbox rule". You can change it later in **Settings → Hooks**, or with `/hooks` in the terminal. Other agents are instructed to use the capture command in `AGENTS.md`. Hooks stop ordinary edits rather than guarantee them, and a hook that cannot start blocks nothing, so run `doctor` once to see whether yours can.
 - **You approve commitments.** Agents propose changes to `REGISTRY.md` and write them only after you accept.
 - **Notes are data.** Text inside a note or a captured web page is never an instruction to the agent.
 - **No secrets in files.** Notes name where a password lives, never the password.
@@ -95,6 +98,7 @@ Use the Python that has `requirements.txt` installed. To check the setup, ask th
 | Keep something worth finding again | *"Add a note on our pricing decision"* | |
 | Review the week | *"Weekly review"* | `review`, then go through the inbox |
 | Check your notes for gaps | *"Review my notes"* | `research --source knowledge` |
+| Check the setup works | *"Check Plainbrain"* | `doctor` |
 | Get the latest version | *"Update Plainbrain"* | `git pull --ff-only`, then `python -m pip install -r requirements.txt` |
 
 Updating never touches your commitments, inbox, notes you added or generated reviews, because git does not track them. It stops if you edited one of Plainbrain's own files, such as an example note. A copy made with **Use this template** has its own history, so it cannot pull updates this way.
@@ -126,7 +130,9 @@ Nothing depends on an Obsidian plugin.
 Agents work with Plainbrain in one of two ways:
 
 - **Enforced:** a hook blocks direct edits to `INBOX.md`, so the inbox stays append-only even if the agent forgets the rule.
-- **Instructed:** the agent reads `AGENTS.md` and follows its rules, but nothing stops a direct edit. Keep the folder in git.
+- **Instructed:** the agent reads `AGENTS.md` and follows its rules, but nothing stops a direct edit.
+
+A hook only works if it can start Python. Claude Code's hook uses `python`, or `python3` when that is all the machine has. The Cursor, Codex and Antigravity hooks call `python` only, which stock macOS and many Linux systems do not have; there those agents are Instructed until `python` starts Python 3. `python scripts/brain.py doctor --root .` tries the guard on your machine and says which case you are in.
 
 | Agent | How | Files it uses | Checked |
 |---|---|---|---|
@@ -142,8 +148,8 @@ Zed reads only the first instructions file it finds, so it uses `AGENTS.md` only
 
 ## Good to know
 
-- **Compatibility:** the automated tests run on Windows, Linux and macOS for every change. Agent setup has been tried by hand only on Windows; see [Which agents](#which-agents).
-- It is plain files in a folder, not a backup. Keep the folder in git or a synced drive.
+- **Compatibility:** the automated tests run on Windows, Linux and macOS for every change, including the Claude Code hook on a machine with only `python3`. Agent setup has been tried by hand only on Windows; see [Which agents](#which-agents).
+- It is plain files in a folder, not a backup. Updates leave your own files out of git, so git does not back them up: keep the folder in a synced or backed-up drive.
 - The brief recommends; it does not decide. It never edits your commitments.
 
 ## Licence
