@@ -21,7 +21,7 @@ from scripts.board import write_board
 from scripts.brief import write_brief
 from scripts.capture import CaptureError, capture_line, drop_lines, repo_view
 from scripts.doctor import run_doctor
-from scripts import registry
+from scripts import recent, registry
 from scripts.ingest import log_pairs, write_ingest
 from scripts.model import valid_date
 from scripts.research import write_research
@@ -68,15 +68,17 @@ Stable context the brief and the weekly review read. Keep it short and current.
 
 areas: {areas}
 capacity: {capacity}
-""",
+{about}""",
 }
 
 
-def init(root: Path, areas: str, capacity: str = "Unknown", example: bool = True) -> int:
+def init(root: Path, areas: str, capacity: str = "Unknown", example: bool = True, about: str = "") -> int:
     """Create the owner's three files. With example=False the registry starts with no items, for an owner
     who is about to add their own with `registry add`."""
     today = date.today().isoformat()
-    values = {"today": today, "areas": " ".join(areas.split()), "capacity": " ".join(capacity.split()) or "Unknown"}
+    about = " ".join(about.split())
+    values = {"today": today, "areas": " ".join(areas.split()), "capacity": " ".join(capacity.split()) or "Unknown",
+              "about": f"\n## About me\n\n{about}\n" if about else ""}
     existing = [name for name in STARTING_FILES if (root / name).exists()]
     if existing:
         print("already set up, nothing changed: " + ", ".join(existing), file=sys.stderr)
@@ -98,11 +100,13 @@ def main(argv=None) -> int:
     p.add_argument("--areas", default="Work, Personal")
     p.add_argument("--capacity", default="Unknown", help="free time in the owner's words, such as 'about 2 hours a day'")
     p.add_argument("--no-example", action="store_true", help="start with no example commitment")
+    p.add_argument("--about", default="", help="who the owner is and what they work on, in their words")
     for name in ("brief", "board", "review", "inbox", "ingest", "doctor"):
         p = sub.add_parser(name)
         p.add_argument("--root", required=True)
         p.add_argument("--today")
     registry.add_parser(sub)
+    recent.add_parser(sub)
     p = sub.add_parser("capture")
     p.add_argument("--root", required=True)
     p.add_argument("--repo", required=True, help="the folder or project the line comes from")
@@ -132,9 +136,12 @@ def main(argv=None) -> int:
     p.add_argument("--today")
     args = parser.parse_args(argv)
 
+    if args.cmd == "recent":
+        print(recent.printable(recent.run(args), sys.stdout.encoding))
+        return 0
     root = Path(args.root)
     if args.cmd == "init":
-        return init(root, args.areas, args.capacity, not args.no_example)
+        return init(root, args.areas, args.capacity, not args.no_example, args.about)
     if args.cmd == "search":
         return search_knowledge(root, args.query)
     today = getattr(args, "today", None) or date.today().isoformat()

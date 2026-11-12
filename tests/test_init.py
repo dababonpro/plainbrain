@@ -47,3 +47,11 @@ def test_command_line_flags(tmp_path):
     assert brain.main(["init", "--root", str(tmp_path), "--areas", "Work, Home", "--capacity", "1 hour", "--no-example"]) == 0
     assert _registry(tmp_path).items == []
     assert "areas: Work, Home" in (tmp_path / "CONTEXT.md").read_text(encoding="utf-8")
+
+
+def test_about_is_kept_in_context_on_one_line(tmp_path):
+    brain.init(tmp_path, "Work", about="QA lead for a web product.\nUses Jira.")
+    context = (tmp_path / "CONTEXT.md").read_text(encoding="utf-8")
+    assert context.endswith("\n## About me\n\nQA lead for a web product. Uses Jira.\n")
+    brain.init(tmp_path / "other", "Work") if (tmp_path / "other").mkdir() is None else None
+    assert "About me" not in (tmp_path / "other" / "CONTEXT.md").read_text(encoding="utf-8")

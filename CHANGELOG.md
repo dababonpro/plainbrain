@@ -2,6 +2,19 @@
 
 To get a newer version, say "Update Plainbrain" to your agent. An update never touches your commitments, inbox or notes.
 
+## 1.2.0, unreleased
+
+From the first team install: setup stopped people at a blank question, and did not say where to go next.
+
+**New**
+
+- Setup opens with one question about you and what you are working on, and the agent drafts your first commitments for you to accept. `init` takes `--about`, kept in `CONTEXT.md`
+- `recent` shows your recent work so the agent can suggest commitments: a folder's recent git history with `--path`, and the first request of each recent Claude Code session with `--claude-sessions`. It only reads and prints, hides anything shaped like a key, and runs only when you say yes
+
+**Changed**
+
+- Setup ends by telling you to open the Plainbrain folder as its own project or session, and what to say there
+
 ## 1.1.1, 11 November 2026
 
 **New**

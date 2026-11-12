@@ -16,7 +16,9 @@ Paste this into Claude Code, Codex, Cursor or Antigravity:
 Install Plainbrain, a second brain in plain Markdown files, for me. First check that Python 3.11 or newer and git are installed; if one is missing, tell me how to install it, remind me to restart you or open a new chat afterwards so you can find it, and stop. Then suggest where to put it (a new folder called my-plainbrain in my Documents folder) and ask me to confirm before you change anything. Never overwrite an existing folder. Once I confirm, clone https://github.com/dababonpro/plainbrain into it and follow its AGENTS.md to set it up: install the requirements, create my files, and show me today's brief.
 ```
 
-The agent checks what you need and asks once where to put Plainbrain. It then asks for your areas, up to three things you owe and how much free time you have, so your first brief is about your own commitments. You can skip any of them.
+The agent checks what you need and asks once where to put Plainbrain. Then it asks you to describe yourself and what you are working on, and drafts your first commitments for you to accept, so your first brief is about your own work. It can also offer to look at your recent work to suggest more: only if you say yes, only on your machine, and it writes nothing from it without your approval.
+
+**After setup, open your Plainbrain folder as its own project or session in your agent.** In the Claude desktop app, start a new session and choose the folder. In a terminal, `cd` into it and start the agent. Then say "Brief".
 
 If the agent asks you to install Python or Git, restart the agent (or open a new chat) once it is installed, then paste the prompt again. Until then the agent cannot see the new install.
 
@@ -39,7 +41,7 @@ On macOS and Linux the command is usually `python3`. If pip refuses to install, 
 
 </details>
 
-`init` creates `REGISTRY.md`, `INBOX.md` and `CONTEXT.md`, with one example commitment. Add `--no-example` to start with none, and `--areas` and `--capacity` to set those. It changes nothing if the files already exist. The brief is written to `reviews/daily/<date>.md`.
+`init` creates `REGISTRY.md`, `INBOX.md` and `CONTEXT.md`, with one example commitment. Add `--no-example` to start with none, and `--areas`, `--capacity` and `--about` to set those. It changes nothing if the files already exist. The brief is written to `reviews/daily/<date>.md`.
 
 ## What a brief looks like
 
@@ -139,6 +141,7 @@ Use the Python that has `requirements.txt` installed. To check the setup, ask th
 | Keep something worth finding again | *"Add a note on our pricing decision"* | |
 | Review the week | *"Weekly review"* | `review`, then go through the inbox |
 | Check your notes for gaps | *"Review my notes"* | `research --source knowledge` |
+| See what you have been working on | *"Look at my recent work and suggest what to track"* | `recent --path <folder>`, `recent --claude-sessions`. Read only |
 | Check the setup works | *"Check Plainbrain"* | `doctor` |
 | Get the latest version | *"Update Plainbrain"* | `git pull --ff-only`, then `python -m pip install -r requirements.txt` |
 
