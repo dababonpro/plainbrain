@@ -6,12 +6,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from scripts.capture import CaptureError, _pick, check_root, inbox_lock
-from scripts.model import Item, RegistryParseError, inbox_items, parse_registry, valid_date
+from scripts.model import (
+    NOTE_SKIP_FILES, Item, RegistryParseError, inbox_items, note_head, parse_registry, valid_date,
+)
 from scripts.rollup import _FROM, _TICKET, _names_id, _open_items
 
-_HEADER = re.compile(r"^([a-z_]+):\s*(.*)$")
 _DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
-_SKIP = {"README.md", "TEMPLATE.md", "INDEX.md", "LOG.md"}
 _LOG = re.compile(r"^- \d{4}-\d{2}-\d{2} \| ([0-9a-f]{8}) \| (\S+) \| \w+\s*$")
 OUTCOMES = ("updated", "unchanged", "rejected")
 LOG_HEADER = (
@@ -55,16 +55,7 @@ def _path_key(value: str) -> str:
 
 def read_page(root: Path, path: Path) -> Page:
     text = path.read_text(encoding="utf-8")
-    fields: dict[str, str] = {}
-    title = ""
-    for line in text.splitlines():
-        if line.startswith("## "):
-            break
-        if line.startswith("# ") and not title:
-            title = line[2:].strip()
-        found = _HEADER.match(line)
-        if found:
-            fields.setdefault(found.group(1), found.group(2).strip())
+    title, fields = note_head(text)
     rel = path.relative_to(root).as_posix()
     return Page(rel, rel.startswith("knowledge/projects/"), title, fields, text, _list(fields.get("aliases", "")))
 
@@ -77,7 +68,7 @@ def pages(root: Path) -> list[Page]:
         if not folder.is_dir():
             continue
         for path in sorted(folder.glob("*.md")):
-            if path.name in _SKIP:
+            if path.name in NOTE_SKIP_FILES:
                 continue
             page = read_page(root, path)
             if page.fields.get("status", "").strip() == "superseded":

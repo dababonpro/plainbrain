@@ -35,4 +35,7 @@ What could make this note wrong, and when to check it again.
      For type: decision, optional fields are expected (what should happen), breaks_if (what would prove it
      wrong), review_on (YYYY-MM-DD, when the brief asks whether it worked), and decide_by (YYYY-MM-DD, for
      an open decision not yet made; answer in the note: is it reversible, who is affected, what does waiting
-     a week cost?). -->
+     a week cost?). Keep expected and breaks_if on one line each. review_on works on any note. The brief
+     lists the note every day from that date until you clear it: after the review, write what you found in
+     the note, then move review_on to the next check or remove it; once a decision is made, remove
+     decide_by. -->

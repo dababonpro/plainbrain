@@ -25,6 +25,7 @@ A note that is edited carelessly loses the thing that made it trustworthy: where
    - **Add:** put the new fact in the section it belongs to, with its source and date.
    - **Correct:** replace the wrong statement, and keep a dated line saying what it used to say.
    - **Retire:** set `status: superseded`, add a line naming what replaces it, and link that note.
+   - **Close a review:** when the brief lists the note under "Decisions due", add a dated line saying what the review found against `expected` and `breaks_if`, then move `review_on` to the next check date or remove it. When an open decision has been made, record it and remove `decide_by`. The brief repeats the note every day until the date is moved or removed.
    - **Split:** when a note covers two topics, propose the split first, then create the new note with the note-creation procedure and link both ways.
    - **Merge:** when two notes cover one topic, propose which survives, move the content, and turn the other into a short superseded note pointing to it, so its links still land somewhere.
 4. **Apply it.** Edit only what the change needs. Keep the template's section order. If the note has no Limits section and the change makes one obvious, offer to add it.
@@ -40,4 +41,5 @@ A note that is edited carelessly loses the thing that made it trustworthy: where
 | History lost | The old text was overwritten | Keep a dated line for what changed |
 | Broken links after a rename | The note app fixes links, other tools do not | Avoid renaming; when needed, update every link |
 | Archived treated as wrong | PARA archive and superseded were mixed up | `para: archive` means not active; `status: superseded` means not true |
+| A review stays in the brief | The note was reread but `review_on` still holds the old date | Record the outcome, then move or remove `review_on` |
 | Silent scope creep | Other problems were fixed along the way | Report them; change only what was asked |

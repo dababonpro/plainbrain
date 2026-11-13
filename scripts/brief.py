@@ -12,9 +12,12 @@ from scripts.model import (
     capacity_line,
     counts,
     inbox_items,
+    note_head,
+    note_paths,
     parse_registry,
     previous_brief_path,
     snapshot_inbox,
+    valid_date,
 )
 from scripts.rollup import rollup, summary
 from scripts.unshipped import latest_summary
@@ -119,50 +122,48 @@ def deadline_lines(items: list[Item], today: str, days: int = DEADLINE_DAYS) -> 
     return [line for _due, line in sorted(found)]
 
 
+_BLOCK_SCALAR = re.compile(r"^[|>][+-]?\d*$")
+
+
 def decision_lines(root: Path, today: str) -> list[str]:
-    """Decision notes in `knowledge/` whose `decide_by` or `review_on` date is today or earlier."""
+    """Current notes in `knowledge/` whose `decide_by` or `review_on` date is today or earlier, oldest first.
+
+    Any note counts, not only `type: decision`: a review date on a reference note is still a reminder. A date
+    that cannot be read is listed too, because skipping it would drop the reminder without a word.
+    """
     folder = Path(root) / "knowledge"
-    if not folder.is_dir() or DATE_RE.fullmatch(today) is None:
+    if not folder.is_dir() or not valid_date(today):
         return []
     now = date.fromisoformat(today)
     found: list[tuple[str, str, str]] = []
-    skip_files = {"TEMPLATE.md", "LOG.md", "README.md", "INDEX.md"}
-    for path in sorted(folder.rglob("*.md")):
-        rel = path.relative_to(folder)
-        if "team" in rel.parts[:-1] or path.name in skip_files:
-            continue
+    for path in note_paths(folder):
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        head = text.split("\n## ", 1)[0]
-        fields: dict[str, str] = {}
-        title = path.stem
-        for line in head.splitlines():
-            if line.startswith("# "):
-                title = line[2:].strip() or path.stem
-                continue
-            m = re.match(r"^([a-z_]+):\s*(.*)$", line)
-            if m:
-                fields[m.group(1)] = m.group(2).strip()
+        title, fields = note_head(text)
         if fields.get("status") == "superseded":
             continue
-        stem = rel.with_suffix("").as_posix()
-        expected = fields.get("expected", "")
-        breaks_if = fields.get("breaks_if", "")
+        stem = path.relative_to(folder).with_suffix("").as_posix()
+        title = title or path.stem
         details = ""
-        if expected:
-            details += f" — expected: {expected}"
-        if breaks_if:
-            details += f" — breaks if: {breaks_if}"
+        for label, key in (("expected", "expected"), ("breaks if", "breaks_if")):
+            value = fields.get(key, "")
+            # A block scalar (`expected: >`) keeps its text on the following lines, which are not read here.
+            if value and not _BLOCK_SCALAR.match(value):
+                details += f" — {label}: {value}"
         for kind, key in (("decide by", "decide_by"), ("review", "review_on")):
-            due = fields.get(key, "")
-            if DATE_RE.fullmatch(due) is None or due > today:
+            raw = fields.get(key, "")
+            due = raw.strip("'\"")
+            if not raw:
                 continue
-            try:
-                left = (now - date.fromisoformat(due)).days
-            except ValueError:
+            if not valid_date(due):
+                found.append(("", stem, f"- {stem}: {title} ({key} is not a YYYY-MM-DD date: {raw}; no reminder "
+                                        "until it is fixed)"))
                 continue
+            if due > today:
+                continue
+            left = (now - date.fromisoformat(due)).days
             when = "today" if left == 0 else f"{left} day{'s' if left != 1 else ''} overdue"
             found.append((due, stem, f"- {stem}: {title} ({kind} {due}, {when}){details}"))
     return [line for _due, _stem, line in sorted(found)]
@@ -497,6 +498,7 @@ def render_dashboard(
     clash_count: int = 0,
     unshipped_count: int = 0,
     resolved_count: int = 0,
+    decision_count: int = 0,
 ) -> str:
     notices = notices or []
     lines = [
@@ -507,6 +509,9 @@ def render_dashboard(
     ]
     if notices:
         lines.extend(notices)
+        lines.append("")
+    if decision_count:
+        lines.append(f"Decisions due: {decision_count}. See the brief.")
         lines.append("")
     if clash_count:
         lines.append(f"Inbox clashes: {clash_count}. See the brief.")
@@ -583,13 +588,14 @@ def write_brief(root: Path, today: str) -> int:
         notices.append(stuck_note)
     clashes = inbox_clashes(doc.items, captured)
     resolved = resolved_proposals(root, captured, today)
+    decisions = decision_lines(root, today)
     _write(
         daily / f"{today}.md",
         render_brief(
             today, since, blocked, action, totals, capacity, inbox_count, doc.focus, notices, clashes, unshipped,
-            resolved, deadline_lines(doc.items, today), decision_lines(root, today),
+            resolved, deadline_lines(doc.items, today), decisions,
         ),
     )
     _write(root / "DASHBOARD.md", render_dashboard(today, action, len(blocked), since, notices, len(clashes),
-                                                   len(unshipped), len(resolved)))
+                                                   len(unshipped), len(resolved), len(decisions)))
     return 0

@@ -167,3 +167,63 @@ def test_decisions_due_lists_due_and_overdue_reviews_and_open_decisions_with_con
     assert "## Decisions due\n" + "\n".join(expected) + "\n" in brief
     assert "future-review" not in brief
     assert "retired" not in brief
+
+
+def _note(folder, name, head, title="Title", body=""):
+    path = folder / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"---\n{head}status: current\n---\n\n# {title}\n{body}\n## Limits\nNone.\n", encoding="utf-8")
+
+
+def test_decisions_due_reports_an_unreadable_date_and_accepts_a_quoted_one(tmp_path):
+    from scripts.brief import decision_lines
+
+    knowledge = tmp_path / "knowledge"
+    _note(knowledge, "quoted.md", 'review_on: "2026-11-10"\n', "Quoted date")
+    _note(knowledge, "comment.md", "review_on: 2026-11-09 # check leads\n", "Trailing comment")
+    _note(knowledge, "impossible.md", "decide_by: 2026-11-31\n", "Impossible date")
+    _note(knowledge, "empty.md", "review_on:\ndecide_by:\n", "No dates")
+    assert decision_lines(tmp_path, "2026-11-11") == [
+        "- comment: Trailing comment (review_on is not a YYYY-MM-DD date: 2026-11-09 # check leads; no reminder "
+        "until it is fixed)",
+        "- impossible: Impossible date (decide_by is not a YYYY-MM-DD date: 2026-11-31; no reminder until it is fixed)",
+        "- quoted: Quoted date (review 2026-11-10, 1 day overdue)",
+    ]
+
+
+def test_decisions_due_skips_staff_cards_and_templates_and_lists_any_note_type_and_both_dates(tmp_path):
+    from scripts.brief import decision_lines
+
+    knowledge = tmp_path / "knowledge"
+    for name in ("team/ana.md", "TEMPLATE.md", "LOG.md", "README.md", "INDEX.md", "projects/TEMPLATE.md"):
+        _note(knowledge, name, "review_on: 2026-11-01\n", "Skipped")
+    _note(knowledge, "projects/site.md", "type: reference\nreview_on: 2026-11-11\n", "Site card")
+    _note(knowledge, "both.md", "type: decision\ndecide_by: 2026-11-08\nreview_on: 2026-11-10\n", "Both dates")
+    assert decision_lines(tmp_path, "2026-11-11") == [
+        "- both: Both dates (decide by 2026-11-08, 3 days overdue)",
+        "- both: Both dates (review 2026-11-10, 1 day overdue)",
+        "- projects/site: Site card (review 2026-11-11, today)",
+    ]
+
+
+def test_decisions_due_reads_the_frontmatter_not_lines_in_the_body(tmp_path):
+    from scripts.brief import decision_lines
+
+    knowledge = tmp_path / "knowledge"
+    body = "\nstatus: superseded\nreview_on: 2027-01-01\n\n```\n# a shell comment\nexpected: from the code block\n```\n"
+    _note(knowledge, "intro.md", "expected: >\nbreaks_if: Leads drop\nreview_on: 2026-11-11\n", "Real title", body)
+    assert decision_lines(tmp_path, "2026-11-11") == [
+        "- intro: Real title (review 2026-11-11, today) — breaks if: Leads drop",
+    ]
+
+
+def test_dashboard_counts_decisions_due(tmp_path):
+    from scripts.brief import write_brief
+
+    (tmp_path / "REGISTRY.md").write_text("# Registry\n\nfocus:\n\n" + _due_item("no-date", ""), encoding="utf-8")
+    assert write_brief(tmp_path, "2026-11-10") == 0
+    assert "Decisions due" not in (tmp_path / "DASHBOARD.md").read_text(encoding="utf-8")
+    _note(tmp_path / "knowledge", "one.md", "review_on: 2026-11-11\n")
+    _note(tmp_path / "knowledge", "two.md", "decide_by: 2026-11-01\n")
+    assert write_brief(tmp_path, "2026-11-11") == 0
+    assert "Decisions due: 2. See the brief.\n" in (tmp_path / "DASHBOARD.md").read_text(encoding="utf-8")

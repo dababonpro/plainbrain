@@ -84,4 +84,23 @@ def test_future_review_on_suppresses_stale_age_proposal_until_due(tmp_path):
     _write(src, "a.md", old_with_review)
     _write(src, "b.md", NOTE.replace("[[b]]", "[[a]]"))
     assert [p["kind"] for p in inventory(src, "2026-11-08")[0]] == []
-    assert [p["kind"] for p in inventory(src, "2026-12-02")[0]] == ["review", "review"]
+    assert [p["kind"] for p in inventory(src, "2026-11-30")[0]] == []
+    on_the_day = inventory(src, "2026-12-01")[0]
+    assert [(p["note"], p["kind"]) for p in on_the_day] == [("a.md", "review")]
+    assert "its review date 2026-12-01 has arrived" in on_the_day[0]["found"]
+    assert "move `review_on`" in on_the_day[0]["action"]
+    later = inventory(src, "2026-12-02")[0]
+    assert [p["kind"] for p in later] == ["review", "review"]
+    assert "with no later review date" in later[1]["found"]
+
+
+def test_unreadable_review_or_decide_date_is_a_metadata_proposal(tmp_path):
+    src = tmp_path / "knowledge"
+    _write(src, "a.md", NOTE.replace("recorded: 2026-11-01", "recorded: 2026-11-01\nreview_on: 9 Nov 2026"))
+    _write(src, "b.md", NOTE.replace("[[b]]", "[[a]]").replace(
+        "recorded: 2026-11-01", 'recorded: 2026-11-01\nreview_on: "2026-12-01"\ndecide_by: 2026-11-31'))
+    found = [(p["note"], p["kind"], p["found"]) for p in inventory(src, "2026-11-08")[0]]
+    assert found == [
+        ("a.md", "metadata", "Not a YYYY-MM-DD date: review_on: 9 Nov 2026."),
+        ("b.md", "metadata", "Not a YYYY-MM-DD date: decide_by: 2026-11-31."),
+    ]
