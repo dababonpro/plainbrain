@@ -80,7 +80,7 @@ someday: 0
 done: 0
 ```
 
-The line under "Next hour" is the next step of the commitment you chose as your focus. From the second day "Since yesterday" lists only what changed. A commitment with a `due` date appears under a "Deadlines" heading once the date is within a week or has passed.
+The line under "Next hour" is the next step of the commitment you chose as your focus. From the second day "Since yesterday" lists only what changed. A commitment with a `due` date appears under a "Deadlines" heading once the date is within a week or has passed, and a decision note with `review_on` or `decide_by` appears under "Decisions due" once that date arrives.
 
 ## What keeps it safe
 

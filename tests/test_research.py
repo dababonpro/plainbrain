@@ -76,3 +76,12 @@ def test_links_in_code_and_vault_root_links_are_not_broken(tmp_path):
     _write(src, "b.md", NOTE.replace("[[b]]", "[[a]]"))
     kinds = [p["kind"] for p in inventory(src, "2026-11-08", tmp_path)[0]]
     assert "link" not in kinds
+
+
+def test_future_review_on_suppresses_stale_age_proposal_until_due(tmp_path):
+    src = tmp_path / "knowledge"
+    old_with_review = NOTE.replace("recorded: 2026-11-01", "recorded: 2026-09-01\nreview_on: 2026-12-01")
+    _write(src, "a.md", old_with_review)
+    _write(src, "b.md", NOTE.replace("[[b]]", "[[a]]"))
+    assert [p["kind"] for p in inventory(src, "2026-11-08")[0]] == []
+    assert [p["kind"] for p in inventory(src, "2026-12-02")[0]] == ["review", "review"]

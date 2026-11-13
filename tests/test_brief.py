@@ -123,5 +123,47 @@ def test_no_deadlines_section_without_a_due_date_and_the_snapshot_is_explained(t
     assert write_brief(tmp_path, "2026-11-11") == 0
     brief = (tmp_path / "reviews" / "daily" / "2026-11-11.md").read_text(encoding="utf-8")
     assert "## Deadlines" not in brief
+    assert "## Decisions due" not in brief
     assert "## For the next brief\nThe next brief compares itself against these lines." in brief
     assert snapshot_inbox(brief) == 0
+
+
+def test_decisions_due_lists_due_and_overdue_reviews_and_open_decisions_with_conditions(tmp_path):
+    from scripts.brief import decision_lines, write_brief
+
+    (tmp_path / "REGISTRY.md").write_text("# Registry\n\nfocus:\n\n" + _due_item("no-date", ""), encoding="utf-8")
+    knowledge = tmp_path / "knowledge"
+    knowledge.mkdir()
+    (knowledge / "tier-rule.md").write_text(
+        "---\ntype: decision\nrecorded: 2026-10-16\nsource: Jane\n"
+        "expected: Hot-lead response time drops below 2 hours\n"
+        "breaks_if: Uncalled hot leads rise above 10%\n"
+        "review_on: 2026-11-09\nstatus: current\n---\n\n# LinkedIn Lead Ads moved to hot tier\n\n## Limits\nNone.\n",
+        encoding="utf-8",
+    )
+    (knowledge / "locale-choice.md").write_text(
+        "---\ntype: decision\nrecorded: 2026-11-01\nsource: Jane\n"
+        "decide_by: 2026-11-11\nstatus: current\n---\n\n# Choose PT-BR or PT-PT\n\n## Limits\nNone.\n",
+        encoding="utf-8",
+    )
+    (knowledge / "future-review.md").write_text(
+        "---\ntype: decision\nrecorded: 2026-11-01\nsource: Jane\n"
+        "review_on: 2026-12-01\nstatus: current\n---\n\n# Future check\n\n## Limits\nNone.\n",
+        encoding="utf-8",
+    )
+    (knowledge / "retired.md").write_text(
+        "---\ntype: decision\nrecorded: 2026-10-01\nsource: Jane\n"
+        "review_on: 2026-11-01\nstatus: superseded\n---\n\n# Retired decision\n\n## Limits\nNone.\n",
+        encoding="utf-8",
+    )
+    expected = [
+        "- tier-rule: LinkedIn Lead Ads moved to hot tier (review 2026-11-09, 2 days overdue)"
+        " — expected: Hot-lead response time drops below 2 hours — breaks if: Uncalled hot leads rise above 10%",
+        "- locale-choice: Choose PT-BR or PT-PT (decide by 2026-11-11, today)",
+    ]
+    assert decision_lines(tmp_path, "2026-11-11") == expected
+    assert write_brief(tmp_path, "2026-11-11") == 0
+    brief = (tmp_path / "reviews" / "daily" / "2026-11-11.md").read_text(encoding="utf-8")
+    assert "## Decisions due\n" + "\n".join(expected) + "\n" in brief
+    assert "future-review" not in brief
+    assert "retired" not in brief

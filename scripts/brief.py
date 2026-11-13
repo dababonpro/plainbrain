@@ -119,6 +119,55 @@ def deadline_lines(items: list[Item], today: str, days: int = DEADLINE_DAYS) -> 
     return [line for _due, line in sorted(found)]
 
 
+def decision_lines(root: Path, today: str) -> list[str]:
+    """Decision notes in `knowledge/` whose `decide_by` or `review_on` date is today or earlier."""
+    folder = Path(root) / "knowledge"
+    if not folder.is_dir() or DATE_RE.fullmatch(today) is None:
+        return []
+    now = date.fromisoformat(today)
+    found: list[tuple[str, str, str]] = []
+    skip_files = {"TEMPLATE.md", "LOG.md", "README.md", "INDEX.md"}
+    for path in sorted(folder.rglob("*.md")):
+        rel = path.relative_to(folder)
+        if "team" in rel.parts[:-1] or path.name in skip_files:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        head = text.split("\n## ", 1)[0]
+        fields: dict[str, str] = {}
+        title = path.stem
+        for line in head.splitlines():
+            if line.startswith("# "):
+                title = line[2:].strip() or path.stem
+                continue
+            m = re.match(r"^([a-z_]+):\s*(.*)$", line)
+            if m:
+                fields[m.group(1)] = m.group(2).strip()
+        if fields.get("status") == "superseded":
+            continue
+        stem = rel.with_suffix("").as_posix()
+        expected = fields.get("expected", "")
+        breaks_if = fields.get("breaks_if", "")
+        details = ""
+        if expected:
+            details += f" — expected: {expected}"
+        if breaks_if:
+            details += f" — breaks if: {breaks_if}"
+        for kind, key in (("decide by", "decide_by"), ("review", "review_on")):
+            due = fields.get(key, "")
+            if DATE_RE.fullmatch(due) is None or due > today:
+                continue
+            try:
+                left = (now - date.fromisoformat(due)).days
+            except ValueError:
+                continue
+            when = "today" if left == 0 else f"{left} day{'s' if left != 1 else ''} overdue"
+            found.append((due, stem, f"- {stem}: {title} ({kind} {due}, {when}){details}"))
+    return [line for _due, _stem, line in sorted(found)]
+
+
 def blocked_lines(items: list[Item], today: str) -> list[str]:
     lines: list[str] = []
     seen: set[str] = set()
@@ -383,6 +432,7 @@ def render_brief(
     unshipped: list[str] | None = None,
     resolved: list[str] | None = None,
     deadlines: list[str] | None = None,
+    decisions: list[str] | None = None,
 ) -> str:
     focus_line = f"focus: {focus}" if focus else "focus:"
     notices = notices or []
@@ -402,6 +452,8 @@ def render_brief(
     ])
     if deadlines:
         lines.extend(["## Deadlines", *deadlines, ""])
+    if decisions:
+        lines.extend(["## Decisions due", *decisions, ""])
     if clashes:
         lines.extend(["## Inbox clashes", *clashes, ""])
     if resolved:
@@ -535,7 +587,7 @@ def write_brief(root: Path, today: str) -> int:
         daily / f"{today}.md",
         render_brief(
             today, since, blocked, action, totals, capacity, inbox_count, doc.focus, notices, clashes, unshipped,
-            resolved, deadline_lines(doc.items, today),
+            resolved, deadline_lines(doc.items, today), decision_lines(root, today),
         ),
     )
     _write(root / "DASHBOARD.md", render_dashboard(today, action, len(blocked), since, notices, len(clashes),

@@ -26,6 +26,7 @@ A new note is worth adding only if it can be found, trusted and kept current. So
 2. **Decide the shape.** Pick the note's `type`, such as decision, reference, procedure, lesson or technique. If the vault uses a `para` field, pick project, area, resource or archive as well. If the request covers more than one note, say how you would split it and confirm before writing more than two.
 3. **Fill the template.** Copy the vault's note template, and read it fresh each time instead of relying on memory. Fill:
    - frontmatter: `type`, `recorded` (today), `source`, `status: current`, `related_notes`, `related_items` (any commitment ids it serves), `para` if used
+   - for `type: decision`, also fill `expected` (what should happen), `breaks_if` (what would prove it wrong, written before the decision), and `review_on` (`YYYY-MM-DD`, when to check whether it worked); for an open decision not yet made, fill `decide_by` (`YYYY-MM-DD`) and answer in the note: is it reversible, who is affected, and what does waiting a week cost?
    - **Purpose:** the question the note answers
    - **Useful information:** the facts, with evidence, observations kept apart from assumptions
    - **Rationale or verification:** why a decision was made, how to check a procedure, or what a lesson rests on

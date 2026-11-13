@@ -103,7 +103,12 @@ def inventory(source: Path, today: str, vault: Path | None = None) -> tuple[list
                               "why": "A note nothing points to is only found by search, and is easy to forget.",
                               "action": "Link it from the note it belongs with, or name the registry item it serves."})
 
-        if valid_date(recorded) and (date.fromisoformat(today) - date.fromisoformat(recorded)).days > STALE_DAYS:
+        review_on = fm.get("review_on", "")
+        if (
+            valid_date(recorded)
+            and (date.fromisoformat(today) - date.fromisoformat(recorded)).days > STALE_DAYS
+            and not (valid_date(review_on) and review_on >= today)
+        ):
             age = (date.fromisoformat(today) - date.fromisoformat(recorded)).days
             proposals.append({**base, "kind": "review", "confidence": "low",
                               "found": f"Recorded {age} days ago, with no later review date.",
