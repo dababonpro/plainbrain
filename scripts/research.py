@@ -10,33 +10,11 @@ import re
 from datetime import date
 from pathlib import Path
 
-from scripts.model import valid_date
+from scripts.model import NOTE_SKIP_DIRS as SKIP_DIRS, NOTE_SKIP_FILES as SKIP_FILES, note_head, note_paths, valid_date
 
-SKIP_DIRS = {"team"}
-SKIP_FILES = {"TEMPLATE.md", "LOG.md", "README.md", "INDEX.md"}
 REQUIRED_FIELDS = ("type", "recorded", "source", "status")
 STALE_DAYS = 30
 WIKILINK = re.compile(r"\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]")
-
-
-def _frontmatter(text: str) -> dict[str, str]:
-    """Key: value lines before the first ## heading, as the other scripts read them."""
-    fields: dict[str, str] = {}
-    for line in text.split("\n## ", 1)[0].splitlines():
-        m = re.match(r"^([a-z_]+):\s*(.*)$", line)
-        if m:
-            fields[m.group(1)] = m.group(2).strip()
-    return fields
-
-
-def _notes(source: Path) -> list[Path]:
-    found = []
-    for p in sorted(source.rglob("*.md")):
-        rel = p.relative_to(source)
-        if SKIP_DIRS & set(rel.parts[:-1]) or p.name in SKIP_FILES:
-            continue
-        found.append(p)
-    return found
 
 
 def _links(text: str) -> list[str]:
@@ -57,7 +35,7 @@ def _link_targets(vault: Path) -> set[str]:
 
 
 def inventory(source: Path, today: str, vault: Path | None = None) -> tuple[list[dict], dict]:
-    notes = _notes(source)
+    notes = note_paths(source)
     names = _link_targets(vault or source)
     texts = {p: p.read_text(encoding="utf-8", errors="replace") for p in notes}
     inbound: dict[str, set[str]] = {p.stem: set() for p in notes}
@@ -69,7 +47,7 @@ def inventory(source: Path, today: str, vault: Path | None = None) -> tuple[list
     proposals: list[dict] = []
     for p, text in texts.items():
         rel = p.relative_to(source).as_posix()
-        fm = _frontmatter(text)
+        fm = note_head(text)[1]
         recorded = fm.get("recorded", "")
         base = {"note": rel, "recorded": recorded or "not recorded", "source": fm.get("source", "") or "not recorded"}
         if fm.get("status") == "superseded":
@@ -103,12 +81,32 @@ def inventory(source: Path, today: str, vault: Path | None = None) -> tuple[list
                               "why": "A note nothing points to is only found by search, and is easy to forget.",
                               "action": "Link it from the note it belongs with, or name the registry item it serves."})
 
-        if valid_date(recorded) and (date.fromisoformat(today) - date.fromisoformat(recorded)).days > STALE_DAYS:
+        bad_dates = [f"{key}: {fm[key]}" for key in ("review_on", "decide_by")
+                     if fm.get(key) and not valid_date(fm[key].strip("'\""))]
+        if bad_dates:
+            proposals.append({**base, "kind": "metadata", "confidence": "high",
+                              "found": f"Not a YYYY-MM-DD date: {', '.join(bad_dates)}.",
+                              "why": "The brief cannot remind you on a date it cannot read.",
+                              "action": "Write the date as YYYY-MM-DD with nothing after it, or remove the field."})
+
+        # A review date still ahead means the note has its next check booked; from that day on it is due.
+        review_on = fm.get("review_on", "").strip("'\"")
+        scheduled = valid_date(review_on)
+        if (
+            valid_date(recorded)
+            and (date.fromisoformat(today) - date.fromisoformat(recorded)).days > STALE_DAYS
+            and not (scheduled and review_on > today)
+        ):
             age = (date.fromisoformat(today) - date.fromisoformat(recorded)).days
-            proposals.append({**base, "kind": "review", "confidence": "low",
-                              "found": f"Recorded {age} days ago, with no later review date.",
-                              "why": "Facts drift; a dated review keeps the note honest.",
-                              "action": "Reread it. Mark it current with a review date, update it, or mark it superseded."})
+            if scheduled:
+                found = f"Recorded {age} days ago, and its review date {review_on} has arrived."
+                action = ("Reread it. Record what you found, then move `review_on` to the next check date or remove "
+                          "it, or mark the note superseded.")
+            else:
+                found = f"Recorded {age} days ago, with no later review date."
+                action = "Reread it. Set `review_on` to the next check date, update it, or mark it superseded."
+            proposals.append({**base, "kind": "review", "confidence": "low", "found": found,
+                              "why": "Facts drift; a dated review keeps the note honest.", "action": action})
 
     order = {"metadata": 0, "link": 1, "limits": 2, "orphan": 3, "review": 4}
     proposals.sort(key=lambda x: (order[x["kind"]], x["note"]))

@@ -265,3 +265,21 @@ def test_a_done_item_needs_no_next_action():
                          "## open\ntitle: Open\nstatus: active\nnext:\nupdated: 2026-10-20\n")
     reasons = {item.id: item.reason for item in doc.items}
     assert reasons == {"shipped": None, "open": "missing next"}
+
+
+def test_note_head_takes_the_first_value_and_ignores_frontmatter_comments_and_code(tmp_path):
+    from scripts.model import note_head, note_paths
+
+    text = (
+        "---\n# a yaml comment\nstatus: current\nreview_on: 2026-11-09\n---\n\n"
+        "```\n# not the title\nstatus: superseded\n```\n"
+        "# The title\nstatus: superseded\nsummary: under the title\n# Second heading\n\n## Section\nreview_on: 2030-01-01\n"
+    )
+    assert note_head(text) == (
+        "The title", {"status": "current", "review_on": "2026-11-09", "summary": "under the title"})
+    assert note_head("no heading\n") == ("", {})
+    for name in ("a.md", "sub/b.md", "team/c.md", "sub/team/d.md", "TEMPLATE.md", "sub/INDEX.md", "LOG.md", "README.md"):
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("x", encoding="utf-8")
+    assert [p.relative_to(tmp_path).as_posix() for p in note_paths(tmp_path)] == ["a.md", "sub/b.md"]

@@ -15,6 +15,54 @@ def valid_date(value: str) -> bool:
         return False
 
 
+NOTE_SKIP_DIRS = {"team"}
+NOTE_SKIP_FILES = {"TEMPLATE.md", "LOG.md", "README.md", "INDEX.md"}
+_NOTE_FIELD = re.compile(r"^([a-z_]+):\s*(.*)$")
+
+
+def note_paths(folder: Path) -> list[Path]:
+    """Notes under a knowledge folder, sorted. Staff cards, templates, logs and indexes are left out."""
+    found = []
+    for path in sorted(Path(folder).rglob("*.md")):
+        rel = path.relative_to(folder)
+        if NOTE_SKIP_DIRS & set(rel.parts[:-1]) or path.name in NOTE_SKIP_FILES:
+            continue
+        found.append(path)
+    return found
+
+
+def note_head(text: str) -> tuple[str, dict[str, str]]:
+    """A note's title and its `key: value` header fields, read from the text before the first `## ` heading.
+
+    The first value of a field wins, so the frontmatter is not overridden by a line in the body. The title is the
+    first `# ` line outside the frontmatter block and outside fenced code, or "" when there is none.
+    """
+    title = ""
+    fields: dict[str, str] = {}
+    lines = text.splitlines()
+    front = bool(lines) and lines[0].strip() == "---"
+    fenced = False
+    for number, line in enumerate(lines):
+        if front:
+            if number and line.strip() == "---":
+                front = False
+                continue
+        elif line.startswith("```"):
+            fenced = not fenced
+            continue
+        elif fenced:
+            continue
+        elif line.startswith("## "):
+            break
+        elif line.startswith("# "):
+            title = title or line[2:].strip()
+            continue
+        found = _NOTE_FIELD.match(line)
+        if found:
+            fields.setdefault(found.group(1), found.group(2).strip())
+    return title, fields
+
+
 @dataclass
 class Item:
     id: str

@@ -10,6 +10,7 @@ From the first team install: setup stopped people at a blank question, and did n
 
 - Setup opens with one question about you and what you are working on, and the agent drafts your first commitments for you to accept. `init` takes `--about`, kept in `CONTEXT.md`
 - `recent` shows your recent work so the agent can suggest commitments: a folder's recent git history with `--path`, and the first request of each recent Claude Code session with `--claude-sessions`. It only reads and prints, hides anything shaped like a key, and runs only when you say yes
+- The brief lists decisions due: notes in `knowledge/` whose `review_on` or `decide_by` date has arrived or passed, with their `expected` and `breaks_if` conditions when set, and the dashboard shows how many. A date the brief cannot read is listed too, so a reminder is never dropped silently. `research` skips the 30-day age notice while `review_on` is still in the future, and reports a date it cannot read
 
 **Changed**
 
