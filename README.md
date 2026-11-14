@@ -1,28 +1,32 @@
 # Plainbrain
 
-A second brain you run with plain Markdown files, a few Python scripts and any AI agent: one list of commitments, an inbox for capture, notes worth finding again, a daily brief and a weekly review.
+A second brain you run with plain Markdown files, a few Python scripts, and any AI agent. It gives you one commitment list, an inbox, searchable notes, a daily brief, and a weekly review.
 
-Free from DababonPro IT Solutions. It works on its own; [Obsidian](https://obsidian.md) is optional, and any agent that reads `AGENTS.md` can run it, such as Claude Code, Codex or Cursor.
+Free from DababonPro IT Solutions. It works on its own. [Obsidian](https://obsidian.md) is optional, and any agent that reads `AGENTS.md` can run it, such as Claude Code, Codex, or Cursor.
 
 **Its sibling:** the [Human-Approved Agent Playbook](https://github.com/dababonpro/human-approved-agents) covers agents that change code and data. This repository covers what you know and what you owe.
 
 ## Install
 
-Needs Python 3.11 or later. Obsidian is optional.
+Requires Python 3.11 or later, plus Git. Obsidian is optional.
 
-Paste this into Claude Code, Codex, Cursor or Antigravity:
+Paste this into Claude Code, Codex, Cursor, or Antigravity:
 
 ```text
-Install Plainbrain, a second brain in plain Markdown files, for me. First check that Python 3.11 or newer and git are installed; if one is missing, tell me how to install it, remind me to restart you or open a new chat afterwards so you can find it, and stop. Then suggest where to put it (a new folder called my-plainbrain in my Documents folder) and ask me to confirm before you change anything. Never overwrite an existing folder. Once I confirm, clone https://github.com/dababonpro/plainbrain into it and follow its AGENTS.md to set it up: install the requirements, create my files, and show me today's brief.
+Install Plainbrain for me. Follow these steps in order:
+1. Check that Python 3.11+ and git are installed. If either is missing, tell me how to install it, remind me to open a new chat afterwards, and stop.
+2. Suggest a new folder path (for example, Documents/my-plainbrain) and wait for my confirmation. Never overwrite an existing folder.
+3. After I confirm, clone https://github.com/dababonpro/plainbrain into that folder.
+4. Read AGENTS.md in the new folder and follow "First setup": install requirements.txt, create my files, and show me today's brief.
 ```
 
-The agent checks what you need and asks once where to put Plainbrain. Then it asks you to describe yourself and what you are working on, and drafts your first commitments for you to accept, so your first brief is about your own work. It can also offer to look at your recent work to suggest more: only if you say yes, only on your machine, and it writes nothing from it without your approval.
+The agent checks your tools first and asks once where to put Plainbrain. Next, it asks one open question about your work and drafts your first commitments for you to review. It can also offer a read-only scan of your recent local work. That scan runs only if you say yes, stays on your machine, and writes nothing without your approval.
 
-**After setup, open your Plainbrain folder as its own project or session in your agent.** In the Claude desktop app, start a new session and choose the folder. In a terminal, `cd` into it and start the agent. Then say "Brief".
+**After setup, open your Plainbrain folder as its own project or session in your agent.** In the Claude desktop app, start a new session and choose the folder. In a terminal, `cd` into the folder and start the agent. Then say "Brief".
 
-If the agent asks you to install Python or Git, restart the agent (or open a new chat) once it is installed, then paste the prompt again. Until then the agent cannot see the new install.
+If you had to install Python or Git first, restart your agent or open a new chat so it can find the new binary.
 
-**Want a private, backed-up copy instead?** Click **Use this template** to make your own copy on GitHub, choose **Private** when GitHub asks, and give your agent that address in place of `dababonpro/plainbrain`. A public copy would show your commitments and notes to anyone once you save them to it.
+**Want a private, backed-up copy instead?** Click **Use this template** on GitHub, choose **Private**, and give your agent your repository URL instead of `dababonpro/plainbrain`. Keep your copy private so your commitments and notes are never public.
 
 <details>
 <summary>Prefer the terminal?</summary>
@@ -32,20 +36,20 @@ git clone https://github.com/<you>/<your-copy> my-plainbrain
 cd my-plainbrain
 python -m pip install -r requirements.txt
 python scripts/brain.py init --root .
-python scripts/brain.py capture --root . --repo setup --text "Try the daily brief"
-python scripts/brain.py brief --root .
-python scripts/brain.py doctor --root .
+python scripts/brain.py capture --root . --repo setup --today YYYY-MM-DD --text "Try the daily brief"
+python scripts/brain.py brief --root . --today YYYY-MM-DD
+python scripts/brain.py doctor --root . --today YYYY-MM-DD
 ```
 
-On macOS and Linux the command is usually `python3`. If pip refuses to install, skip that line: only the optional MCP server needs it.
+On macOS and Linux, use `python3` if `python` is not found. If pip refuses to install on a system-protected Python, skip that line. Only the optional MCP server needs it.
 
 </details>
 
-`init` creates `REGISTRY.md`, `INBOX.md` and `CONTEXT.md`, with one example commitment. Add `--no-example` to start with none, and `--areas`, `--capacity` and `--about` to set those. It changes nothing if the files already exist. The brief is written to `reviews/daily/<date>.md`.
+`init` creates `REGISTRY.md`, `INBOX.md`, and `CONTEXT.md` with one example commitment. Pass `--no-example` to start empty, and use `--areas`, `--capacity`, and `--about` to set your context. If the files already exist, `init` changes nothing. The brief is written to `reviews/daily/YYYY-MM-DD.md`.
 
 ## What a brief looks like
 
-After setup, "brief" writes a page like this from your own files. No AI model writes it, so it says only what the files say.
+After setup, saying "Brief" writes a report like this from your own files. A deterministic Python script writes it, so it reports only what your files contain.
 
 ```text
 # Brief 2026-11-11
@@ -80,25 +84,23 @@ someday: 0
 done: 0
 ```
 
-The line under "Next hour" is the next step of the commitment you chose as your focus. From the second day "Since yesterday" lists only what changed. A commitment with a `due` date appears under a "Deadlines" heading once the date is within a week or has passed, and a note with `review_on` or `decide_by` appears under "Decisions due" from that date until you move or remove the date. The dashboard shows how many are due.
+`## Next hour` shows the next step of your current focus commitment. Starting on day two, `## Since yesterday` lists only what changed. Commitments due within seven days or past due appear under `## Deadlines`. Notes whose `review_on` or `decide_by` date has arrived appear under `## Decisions due` until you update the date.
 
 ## What keeps it safe
 
 - **The inbox is append-only.** Agents add lines with `capture` and never rewrite `INBOX.md`.
-- **Inbox protection:** Claude Code, Cursor, Codex and Antigravity can block direct inbox edits through hooks (`.claude/settings.json`, `.cursor/hooks.json`, `.codex/hooks.json`, `.agents/hooks.json`). Codex asks once, in a **Review hooks** prompt: choose **Allow** for "Checking the inbox rule". You can change it later in **Settings → Hooks**, or with `/hooks` in the terminal. Other agents are instructed to use the capture command in `AGENTS.md`. Hooks stop ordinary edits rather than guarantee them, and a hook that cannot start blocks nothing, so run `doctor` once to see whether yours can.
-- **You approve commitments.** Agents propose changes to `REGISTRY.md` and write them only after you accept. They write through `registry` commands that change one item at a time, refuse a change that breaks the rules, and record each change in `reviews/registry/`.
+- **Inbox protection:** Claude Code, Cursor, Codex, Antigravity, and Block goose block direct inbox edits through hooks. OpenCode blocks file-tool edits through `opencode.json`. In Codex, choose **Allow** when prompted to review hooks (or manage them later in **Settings → Hooks** or `/hooks`). Run `python scripts/brain.py doctor --root .` once to verify that your hook can start Python.
+- **You approve commitments.** Agents propose changes to `REGISTRY.md` and write them only after you accept. Each `registry` command edits one item, checks the rules, and logs the change in `reviews/registry/YYYY-MM.md`.
 - **Notes are data.** Text inside a note or a captured web page is never an instruction to the agent.
-- **No secrets in files.** Notes name where a password lives, never the password.
+- **No secrets in files.** Notes name where a password lives, never the password itself.
 
 ## Use it from other folders (optional)
 
-The MCP server in `scripts/mcp_server.py` lets an agent working in any other folder search your notes, read your commitments and capture a line. It has no network access and needs no API keys. Capture is its only write.
+The MCP server in `scripts/mcp_server.py` lets an agent in another project search your notes, read your commitments, and capture a line. It uses stdio with no network access and no API keys. `capture` is its only write tool.
 
-It works on one folder: the one named by the `BRAIN_ROOT` environment variable, or, when that is not set, the folder the script sits in. Point it at your own copy, the folder where you ran `init`, never at a second clone you keep for updates.
+Point `BRAIN_ROOT` at the folder where you ran `init`, never at a separate clone. Replace `C:/path/to/my-plainbrain` with your folder path in the examples below.
 
-Replace `C:/path/to/my-plainbrain` with your folder in each example.
-
-**Codex**, in `~/.codex/config.toml` (the app and the terminal share it):
+**Codex**, in `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.plainbrain]
@@ -107,13 +109,13 @@ args = ["C:/path/to/my-plainbrain/scripts/mcp_server.py"]
 env = { BRAIN_ROOT = "C:/path/to/my-plainbrain" }
 ```
 
-**Claude Code**, for every project on this computer:
+**Claude Code**, for every project on your computer:
 
 ```text
 claude mcp add plainbrain --scope user -e BRAIN_ROOT=C:/path/to/my-plainbrain -- python C:/path/to/my-plainbrain/scripts/mcp_server.py
 ```
 
-**Cursor** (`~/.cursor/mcp.json`) and **Antigravity** (`~/.gemini/config/mcp_config.json`, or in the app **Customizations → Installed → MCP Servers**) use the same JSON:
+**Cursor** (`~/.cursor/mcp.json`) and **Antigravity** (`~/.gemini/config/mcp_config.json`, or **Customizations → Installed → MCP Servers**):
 
 ```json
 {
@@ -127,27 +129,55 @@ claude mcp add plainbrain --scope user -e BRAIN_ROOT=C:/path/to/my-plainbrain --
 }
 ```
 
-Use the Python that has `requirements.txt` installed. To check the setup, ask the agent to search for "PARA" and confirm the result comes from your folder.
+**OpenCode**, in `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "plainbrain": {
+      "type": "local",
+      "command": ["python", "C:/path/to/my-plainbrain/scripts/mcp_server.py"],
+      "environment": { "BRAIN_ROOT": "C:/path/to/my-plainbrain" }
+    }
+  }
+}
+```
+
+**Block goose**, under `extensions:` in `~/.config/goose/config.yaml` (or `%APPDATA%\Block\goose\config\config.yaml` on Windows):
+
+```yaml
+extensions:
+  plainbrain:
+    name: Plainbrain
+    type: stdio
+    cmd: python
+    args: ["C:/path/to/my-plainbrain/scripts/mcp_server.py"]
+    envs: { BRAIN_ROOT: "C:/path/to/my-plainbrain" }
+    enabled: true
+```
+
+Use the Python environment where you installed `requirements.txt`. To verify the setup, ask your agent to search for `PARA`.
 
 ## Daily use
 
 | You want to | Say to your agent | Or run |
 |---|---|---|
-| Note something on your mind | *"Capture: call the dentist on Monday"* | `capture --text "..."` |
-| See what to do today | *"Brief"* | `brief`, then `board` for a page you can open in a browser |
-| Add or change a commitment | *"Add a commitment: renew my passport"*, *"The dentist is booked, mark it done"* | `registry add`, `registry update`, `registry done` |
-| Keep a promise you made in passing | Say *"I'll send Sam the figures by Friday"* while working on something else | The agent proposes it as a commitment at the next pause; `registry add` after you accept |
-| Find something | *"What do I know about pricing?"* | `search --query "words"` |
-| Keep something worth finding again | *"Add a note on our pricing decision"* | |
-| Review the week | *"Weekly review"* | `review`, then go through the inbox |
-| Check your notes for gaps | *"Review my notes"* | `research --source knowledge` |
-| See what you have been working on | *"Look at my recent work and suggest what to track"* | `recent --path <folder>`, `recent --claude-sessions`. Read only |
-| Check the setup works | *"Check Plainbrain"* | `doctor` |
-| Get the latest version | *"Update Plainbrain"* | `git pull --ff-only`, then `python -m pip install -r requirements.txt` |
+| Note something on your mind | *"Capture: call the dentist on Monday"* | `capture --root . --repo <folder> --text "..."` |
+| See what to do today | *"Brief"* | `brief --root .`, then `board --root .` |
+| Add or change a commitment | *"Add a commitment: renew my passport"* | `registry add`, `registry update`, `registry done` |
+| Keep a promise you made in passing | *"I'll send Sam the figures by Friday"* | The agent proposes a commitment at the next pause and runs `registry add` after you accept |
+| Find something | *"What do I know about pricing?"* | `search --root . --query "words"` |
+| Keep something worth finding again | *"Add a note on our pricing decision"* | Skill: `note-creation` |
+| Review the week | *"Weekly review"* | `review --root .`, then triage the inbox |
+| Check your notes for gaps | *"Review my notes"* | `research --root . --source knowledge` |
+| See what you worked on recently | *"Look at my recent work and suggest what to track"* | `recent --path <folder>`, `recent --claude-sessions` |
+| Check the setup | *"Check Plainbrain"* | `doctor --root .` |
+| Get the latest version | *"Update Plainbrain"* | Follow `## Updating Plainbrain` in `AGENTS.md` |
 
-Updating never touches your commitments, inbox, notes you added or generated reviews, because git does not track them. It stops if you edited one of Plainbrain's own files, such as an example note. A copy made with **Use this template** has its own history, so it cannot pull updates this way.
+Updating never touches your commitments, inbox, notes, or generated reviews because git does not track them. If you modified a tracked file such as an example note, the update stops first. A repository created with **Use this template** has separate git history and cannot pull directly.
 
-Every command takes `--root .`. Agents follow `AGENTS.md`, and use the skills in `.claude/skills/` and `.agents/skills/`: knowledge retrieval, note creation, note update, the guided researcher and promise tracking.
+Every command takes `--root .`. Agents follow `AGENTS.md` and use the skills in `.claude/skills/` and `.agents/skills/`.
 
 ## Three fields on every note
 
@@ -157,50 +187,52 @@ Every command takes `--root .`. Agents follow `AGENTS.md`, and use the skills in
 | `para` | project, area, resource, archive | How actionable is it? |
 | `status` | current, superseded | Is it still true? |
 
-`para` follows Tiago Forte's PARA method, as a field rather than a folder, so notes never move. Archive means not active; superseded means no longer true. Your commitments stay in `REGISTRY.md`. The example notes in `knowledge/` explain more; delete them once your own notes replace them.
+`para` uses Tiago Forte's PARA method as a frontmatter field rather than a folder, so notes never need to move. `archive` means inactive, and `superseded` means no longer true. Delete the example notes in `knowledge/` once your own notes replace them.
 
 ## With or without Obsidian
 
-| | Without Obsidian | With Obsidian |
+| Task | Without Obsidian | With Obsidian |
 |---|---|---|
-| Find notes | `search`, or your agent | The same, plus Obsidian's search |
-| See notes by PARA | Ask your agent, or search by field | Open `views/Plainbrain.base` |
-| Rename a note | Update every link to it, or ask your agent | Obsidian updates links for you |
+| Find notes | `search`, or ask your agent | Same, plus Obsidian search |
+| Browse notes by PARA | Ask your agent, or search by field | Open `views/Plainbrain.base` |
+| Rename a note | Update links with your agent | Obsidian updates links automatically |
 
-Nothing depends on an Obsidian plugin.
+Nothing requires an Obsidian plugin.
 
 ## Which agents
 
-Agents work with Plainbrain in one of two ways:
+Agents work with Plainbrain in one of two modes:
 
-- **Enforced:** a hook blocks direct edits to `INBOX.md`, so the inbox stays append-only even if the agent forgets the rule.
-- **Instructed:** the agent reads `AGENTS.md` and follows its rules, but nothing stops a direct edit.
+- **Enforced:** a hook blocks direct edits to `INBOX.md`, so the inbox stays append-only even if the agent forgets.
+- **Instructed:** the agent reads `AGENTS.md` and follows its rules, without a hook blocking direct edits.
 
-A hook only works if it can start Python. Claude Code's hook uses `python`, or `python3` when that is all the machine has. The Cursor, Codex and Antigravity hooks call `python` only, which stock macOS and many Linux systems do not have; there those agents are Instructed until `python` starts Python 3. `python scripts/brain.py doctor --root .` tries the guard on your machine and says which case you are in.
+Hooks require a working Python command. Claude Code's hook tries `python` and falls back to `python3`. Cursor, Codex, and Antigravity hooks call `python` directly. Run `python scripts/brain.py doctor --root .` to see whether hooks are active on your machine.
 
-| Agent | How | Files it uses | Checked |
+| Agent | Mode | Files used | Status |
 |---|---|---|---|
-| Claude Code | Enforced | `.claude/settings.json`, `.claude/skills/` | Tried by hand on Windows, November 2026 |
-| Codex | Enforced, after you allow the hook once | `.codex/hooks.json`, `.agents/skills/` | Tried by hand on Windows, November 2026 |
-| Cursor | Enforced | `.cursor/hooks.json` | Tried by hand on Windows, November 2026 |
-| Antigravity | Enforced | `.agents/hooks.json`, `.agents/skills/` | Hook ships and has tests; not tried by hand yet |
-| Amp, goose, Jules, Zed | Instructed | `AGENTS.md` | Their docs say they read it automatically; not tried |
-| Gemini CLI | Instructed | `.gemini/settings.json` points it at `AGENTS.md` | From its docs; not tried. If you turned on trusted folders, trust this folder |
-| GitHub Copilot in VS Code | Instructed | `AGENTS.md`, with the `chat.useAgentsMdFile` setting on | From its docs; not tried |
+| Claude Code | Enforced | `.claude/settings.json`, `.claude/skills/` | Tested on Windows, November 2026 |
+| Codex | Enforced after allowing the hook | `.codex/hooks.json`, `.agents/skills/` | Tested on Windows, November 2026 |
+| Cursor | Enforced | `.cursor/hooks.json` | Tested on Windows, November 2026 |
+| Antigravity | Enforced | `.agents/hooks.json`, `.agents/skills/` | Automated tests pass, manual test pending |
+| Block goose | Enforced | `.agents/plugins/plainbrain/hooks/hooks.json`, `.agents/skills/`, `AGENTS.md` | Automated tests pass, manual test pending |
+| OpenCode | Enforced for file tools, instructed for shell | `opencode.json`, `.agents/skills/`, `.claude/skills/`, `AGENTS.md` | Configured from docs, manual test pending |
+| Amp, Jules, Zed | Instructed | `AGENTS.md` | Reads `AGENTS.md` automatically per vendor docs |
+| Gemini CLI | Instructed | `.gemini/settings.json` points to `AGENTS.md` | Configured from docs, trust the folder if prompted |
+| GitHub Copilot in VS Code | Instructed | `AGENTS.md` with `chat.useAgentsMdFile` enabled | Configured from docs |
 
-Zed reads only the first instructions file it finds, so it uses `AGENTS.md` only while the folder has no `.rules`, `.cursorrules` or similar file. Any other agent that reads `AGENTS.md` should work the same way.
+Zed reads only the first instruction file it finds, so keep `AGENTS.md` as the only rules file in the root folder.
 
 ## Good to know
 
-- **Compatibility:** the automated tests run on Windows, Linux and macOS for every change, including the Claude Code hook on a machine with only `python3`. Agent setup has been tried by hand only on Windows; see [Which agents](#which-agents).
-- It is plain files in a folder, not a backup. Updates leave your own files out of git, so git does not back them up: keep the folder in a synced or backed-up drive.
-- The brief recommends; it does not decide. It never edits your commitments.
+- **Compatibility:** automated tests run on Windows, Linux, and macOS for every change.
+- **Backups:** git ignores your personal files so updates never overwrite them. Keep your Plainbrain folder in a backed-up or synced drive.
+- **You decide:** the daily brief recommends a next step and never edits your commitments.
 
 ## Licence
 
 Copyright DababonPro IT Solutions, 2026.
 
-- Templates, example notes, this README and `AGENTS.md`: [CC BY 4.0](LICENSE-docs).
-- Scripts, tests and skills: [MIT](LICENSE). Each skill folder carries its own copy.
+- Templates, example notes, this README, and `AGENTS.md`: [CC BY 4.0](LICENSE-docs).
+- Scripts, tests, and skills: [MIT](LICENSE). Each skill folder includes its own copy.
 
 Built by DababonPro IT Solutions. Independent of the AI vendors whose tools it works with.
