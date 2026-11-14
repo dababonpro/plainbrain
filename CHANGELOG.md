@@ -15,6 +15,19 @@ From the first team install: setup stopped people at a blank question, and did n
 **Changed**
 
 - Setup ends by telling you to open the Plainbrain folder as its own project or session, and what to say there
+- The brief treats a `waiting` item without `follow_up` as unusable, as the registry rules already said. The commands and the brief now share one rule set
+- Moving an item to `active` or `done` with a registry command empties its `blocked_on` and `follow_up`, unless the same command sets them
+- Inbox and registry writes use an operating-system lock. A crashed writer releases it at once, and no waiter can remove another writer's lock. The `.lock` files now stay in the folder between writes. Restart a running MCP server after updating, so it uses the new lock too
+
+**Fixed**
+
+- A done item with a past `follow_up` no longer appears under Blocked
+- "Since yesterday" includes a change made later on the day of the previous brief
+- Inbox clashes no longer match a one-word id, such as `review`, inside ordinary text. A one-word id counts when the line starts with `<id>:`
+- Repairing the inbox keeps your own sections and their lines in place, and keeps indented details and notes under their Brain Dump line
+- The inbox guard also blocks PowerShell .NET writes, such as `[IO.File]::WriteAllText`, and `New-Item -Force`
+- An archive that fails to save the registry takes its copy back out of the archive file, so a retry does not add the item twice
+- The unshipped scan describes a branch that is ahead of its upstream when its commits are already on another remote branch, instead of printing an empty line
 
 ## 1.1.1, 11 November 2026
 

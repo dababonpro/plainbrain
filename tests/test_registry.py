@@ -90,7 +90,7 @@ def test_add_keeps_the_optional_fields_when_the_registry_uses_them(root):
     ("new-one", ["title=x"], "needs next"),
     ("new-one", ["title=x", "next=y", "area=Garden"], "area must be"),
     ("new-one", ["title=x", "next=y", "colour=red"], "unknown field"),
-    ("new-one", ["title=x", "next=y", "status=waiting"], "waiting needs"),
+    ("new-one", ["title=x", "next=y", "status=waiting"], "waiting without blocked_on"),
     ("new-one", ["title=x", "next=y", "depends_on=no-such-item"], "not in the registry"),
 ])
 def test_add_refuses_and_changes_nothing(root, item_id, sets, message):
@@ -116,7 +116,7 @@ def test_update_changes_only_the_named_item(root):
 
 
 def test_update_to_waiting_needs_both_fields(root):
-    with pytest.raises(RegistryError, match="waiting needs blocked_on and follow_up"):
+    with pytest.raises(RegistryError, match="waiting without follow_up"):
         registry.update(root, "dentist-call", {"status": "waiting", "blocked_on": "Clinic"}, TODAY)
     assert text(root) == BASE
     registry.update(root, "dentist-call", {"status": "waiting", "blocked_on": "Clinic", "follow_up": "2026-11-20"}, TODAY)
@@ -124,7 +124,7 @@ def test_update_to_waiting_needs_both_fields(root):
 
 
 @pytest.mark.parametrize("sets, message", [
-    ({"status": "someday"}, "someday needs follow_up"),
+    ({"status": "someday"}, "someday without follow_up"),
     ({"follow_up": "next week"}, "bad follow_up"),
     ({"due": "2026-13-40"}, "bad due"),
     ({"status": "paused"}, "status must be"),
@@ -242,3 +242,37 @@ def test_command_line(root):
         _run(root, "focus")
     assert _run(root, "focus", "--clear") == "focus:"
     assert _run(root, "show", "--id", "tax-return").startswith("## tax-return")
+
+
+def test_moving_a_waiting_item_to_active_or_done_clears_its_waiting_fields(root):
+    registry.update(root, "tax-return", {"status": "waiting", "blocked_on": "Jane", "follow_up": "2026-11-20"}, TODAY)
+    registry.update(root, "tax-return", {"status": "active"}, TODAY)
+    fields = item(root, "tax-return").fields
+    assert fields["blocked_on"] == "" and fields["follow_up"] == ""
+    assert 'blocked_on: "Jane" -> ""' in log(root)
+    registry.update(root, "dentist-call", {"status": "waiting", "blocked_on": "Clinic", "follow_up": "2026-11-20"}, TODAY)
+    registry.done(root, "dentist-call", {"outcome": "nothing to keep"}, TODAY)
+    fields = item(root, "dentist-call").fields
+    assert fields["status"] == "done" and fields["blocked_on"] == "" and fields["follow_up"] == ""
+
+
+def test_active_with_a_named_blocker_keeps_it(root):
+    registry.update(root, "tax-return", {"status": "waiting", "blocked_on": "Jane", "follow_up": "2026-11-20"}, TODAY)
+    registry.update(root, "tax-return", {"status": "active", "blocked_on": "Receipts from Jane"}, TODAY)
+    fields = item(root, "tax-return").fields
+    assert fields["blocked_on"] == "Receipts from Jane" and fields["follow_up"] == ""
+
+
+def test_a_failed_registry_save_takes_the_archive_copy_back_out(root, monkeypatch):
+    registry.focus(root, None, TODAY)
+    registry.done(root, "dentist-call", {"outcome": "nothing to keep"}, TODAY)
+    before = text(root)
+
+    def locked(*_args):
+        raise PermissionError("REGISTRY.md is open in another program")
+
+    monkeypatch.setattr(registry, "_commit", locked)
+    with pytest.raises(PermissionError):
+        registry.archive(root, "dentist-call", TODAY)
+    assert text(root) == before
+    assert not (root / "archive" / "2026-11.md").exists()

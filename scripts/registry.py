@@ -13,10 +13,10 @@ saying what changed.
 """
 import os
 import re
-import time
 from contextlib import contextmanager
 from pathlib import Path
 
+from scripts.filelock import hold
 from scripts.model import ID_RE, KNOWN_STATUS, RegistryParseError, parse_registry, valid_date
 
 CORE_FIELDS = ["title", "area", "kind", "status", "next", "blocked_on", "follow_up", "pointer", "opened", "updated",
@@ -25,7 +25,6 @@ OPTIONAL_FIELDS = ["weekly", "due", "depends_on", "requested_on", "knowledge"]
 FIELDS = CORE_FIELDS + OPTIONAL_FIELDS
 DEFAULT_AREAS = ["Work", "Personal"]
 LOCK_WAIT_SECONDS = 10.0
-LOCK_STALE_SECONDS = 60.0
 LOG_VALUE_LIMIT = 80
 
 
@@ -36,33 +35,9 @@ class RegistryError(Exception):
 @contextmanager
 def registry_lock(root: Path):
     """One writer at a time, the same way capture guards the inbox."""
-    lock = Path(root) / "REGISTRY.md.lock"
-    deadline = time.monotonic() + LOCK_WAIT_SECONDS
-    while True:
-        try:
-            handle = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            break
-        except (FileExistsError, PermissionError):
-            try:
-                if time.time() - lock.stat().st_mtime > LOCK_STALE_SECONDS:
-                    lock.unlink()
-                    continue
-            except FileNotFoundError:
-                continue
-            except PermissionError:
-                pass
-            if time.monotonic() > deadline:
-                raise RegistryError("REGISTRY.md is locked by another change; try again")
-            time.sleep(0.05)
-    try:
-        os.write(handle, str(os.getpid()).encode("ascii"))
-        os.close(handle)
+    with hold(Path(root) / "REGISTRY.md.lock", LOCK_WAIT_SECONDS,
+              RegistryError("REGISTRY.md is locked by another change; try again")):
         yield
-    finally:
-        try:
-            lock.unlink()
-        except FileNotFoundError:
-            pass
 
 
 def _read(root: Path) -> tuple[list[str], str]:
@@ -119,14 +94,14 @@ def parse_sets(pairs: list[str] | None) -> dict[str, str]:
 
 
 def _check_fields(root: Path, fields: dict[str, str], known_ids: set[str]) -> None:
-    """The registry rules the parser does not enforce."""
+    """Rules that need more than the item itself: the owner's areas and the other ids.
+
+    Status, blocked_on, follow_up and the dates are checked once, by model._unusable_reason, when _validate parses
+    the result. Keeping one rule set means the brief and the commands cannot disagree about what is usable.
+    """
     status = fields.get("status", "")
     if status not in KNOWN_STATUS:
         raise RegistryError(f"status must be one of: {', '.join(KNOWN_STATUS)}")
-    if status == "waiting" and not (fields.get("blocked_on") and fields.get("follow_up")):
-        raise RegistryError("waiting needs blocked_on and follow_up")
-    if status == "someday" and not fields.get("follow_up"):
-        raise RegistryError("someday needs follow_up")
     area = fields.get("area", "")
     if area and area not in _areas(root):
         raise RegistryError(f"area must be one of: {', '.join(_areas(root))}")
@@ -224,6 +199,7 @@ def update(root: Path, item_id: str, changes: dict[str, str], today: str, why: s
         item = next((i for i in doc.items if i.id == item_id), None)
         if item is None:
             raise RegistryError(f"no item called {item_id}")
+        changes = {**changes, **_released(item.fields, changes)}
         fields = {**item.fields, **changes, "updated": today}
         _check_fields(root, fields, {i.id for i in doc.items} - {item_id})
         start, end = _block(lines, item_id)
@@ -246,6 +222,19 @@ def update(root: Path, item_id: str, changes: dict[str, str], today: str, why: s
         _write(root, lines, after, newline, {item_id})
         _log(root, today, action, item_id, changed, why)
         return "\n".join(after[start:end])
+
+
+def _released(old: dict[str, str], changes: dict[str, str]) -> dict[str, str]:
+    """Empty blocked_on and follow_up when an item moves to active or done, unless the change sets them.
+
+    A waiting item that becomes active is no longer blocked, and a finished one has nothing to follow up. Left in
+    place, blocked_on keeps an active item out of the next action, and an old follow_up lists a done item as blocked.
+    """
+    before = old.get("status", "").strip()
+    after = changes.get("status", before).strip()
+    if after == before or after not in ("active", "done"):
+        return {}
+    return {key: "" for key in ("blocked_on", "follow_up") if key not in changes and old.get(key, "").strip()}
 
 
 def done(root: Path, item_id: str, changes: dict[str, str], today: str, why: str = "") -> str:
@@ -313,10 +302,20 @@ def archive(root: Path, item_id: str, today: str, why: str = "", not_done: bool 
         folder = Path(root) / "archive"
         folder.mkdir(exist_ok=True)
         target = folder / f"{today[:7]}.md"
-        gap = "\n" if target.is_file() and target.stat().st_size > 0 else ""
+        size = target.stat().st_size if target.is_file() else 0
+        gap = "\n" if size > 0 else ""
         with target.open("a", encoding="utf-8", newline="\n") as handle:
             handle.write(gap + f"archived: {today}\n" + "\n".join(block) + "\n")
-        _commit(root, after, newline)
+        try:
+            _commit(root, after, newline)
+        except OSError:
+            # The registry still holds the item, so take the copy back out of the archive: a retry must not add
+            # it twice.
+            with target.open("r+b") as handle:
+                handle.truncate(size)
+            if size == 0:
+                target.unlink()
+            raise
         _log(root, today, "archive", item_id, [("status", item.fields.get("status", ""), "archived")], why)
     return f"archived {item_id} to archive/{today[:7]}.md"
 

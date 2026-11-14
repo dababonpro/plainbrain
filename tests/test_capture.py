@@ -56,6 +56,35 @@ def test_capture_repairs_a_missing_heading_without_dropping_lines(tmp_path):
     assert inbox_items(text)[-1] == "new fact (from demo, 2026-10-21)"
 
 
+def test_repair_keeps_the_owners_sections_and_brain_dump_details_in_place(tmp_path):
+    text = """# Inbox
+
+## Triage Rules
+
+- Action: a concrete next step.
+
+## Brain Dump
+
+- call the bank (from demo, 2026-10-20)
+  - ask about the card fee
+  note: they close at 4
+
+## Waiting on others
+
+- Sam sends the contract
+- Lee confirms the venue
+"""
+    (tmp_path / "INBOX.md").write_text(text, encoding="utf-8")
+    capture_line(tmp_path, "demo", "new fact", "2026-10-21")
+    result = (tmp_path / "INBOX.md").read_text(encoding="utf-8")
+    assert [line for line in result.splitlines() if line.startswith("## ")][-1] == "## Brain Dump"
+    waiting = result.split("## Waiting on others\n", 1)[1].split("## Brain Dump", 1)[0]
+    assert "- Sam sends the contract\n- Lee confirms the venue" in waiting
+    brain = result.split("## Brain Dump\n", 1)[1]
+    assert "- call the bank (from demo, 2026-10-20)\n  - ask about the card fee\n  note: they close at 4" in brain
+    assert inbox_items(result) == ["call the bank (from demo, 2026-10-20)", "new fact (from demo, 2026-10-21)"]
+
+
 def test_capture_creates_a_missing_file(tmp_path):
     (tmp_path / "REGISTRY.md").write_text("# Registry\n\nfocus:\n", encoding="utf-8")
     capture_line(tmp_path, "demo", "first line", "2026-10-21")
@@ -212,21 +241,37 @@ def test_concurrent_captures_keep_every_line(tmp_path):
     assert not errors
     items = inbox_items((tmp_path / "INBOX.md").read_text(encoding="utf-8"))
     assert sorted(items[1:]) == sorted(f"fact {n} (from demo, 2026-10-21)" for n in range(12))
-    assert not (tmp_path / "INBOX.md.lock").exists()
 
 
-def test_a_held_lock_blocks_then_a_stale_lock_is_cleared(tmp_path, monkeypatch):
+def test_a_held_lock_blocks_and_a_leftover_lock_file_does_not(tmp_path, monkeypatch):
     import scripts.capture as capture
     (tmp_path / "INBOX.md").write_text(VALID, encoding="utf-8")
     monkeypatch.setattr(capture, "LOCK_WAIT_SECONDS", 0.2)
     with inbox_lock(tmp_path):
         with pytest.raises(CaptureError):
             capture_line(tmp_path, "demo", "blocked", "2026-10-21")
-    lock = tmp_path / "INBOX.md.lock"
-    lock.write_text("1", encoding="utf-8")
-    monkeypatch.setattr(capture, "LOCK_STALE_SECONDS", 0.0)
-    capture_line(tmp_path, "demo", "after stale", "2026-10-21")
-    assert "after stale (from demo, 2026-10-21)" in inbox_items((tmp_path / "INBOX.md").read_text(encoding="utf-8"))
+    # A lock file with nobody holding it, such as one left by the old O_EXCL lock, is not a held lock.
+    (tmp_path / "INBOX.md.lock").write_text("1", encoding="utf-8")
+    capture_line(tmp_path, "demo", "after leftover", "2026-10-21")
+    assert "after leftover (from demo, 2026-10-21)" in inbox_items((tmp_path / "INBOX.md").read_text(encoding="utf-8"))
+
+
+def test_a_crashed_holder_releases_the_lock(tmp_path, monkeypatch):
+    """The operating system drops the lock when the holder dies, so nobody has to judge a lock stale."""
+    import subprocess
+    import sys
+    import scripts.capture as capture
+    (tmp_path / "INBOX.md").write_text(VALID, encoding="utf-8")
+    holder = (
+        "import os, sys; from pathlib import Path; from scripts.filelock import hold\n"
+        "with hold(Path(sys.argv[1]) / 'INBOX.md.lock', 1.0, RuntimeError('busy')):\n"
+        "    os._exit(0)\n"
+    )
+    repo = Path(__file__).resolve().parents[1]
+    subprocess.run([sys.executable, "-c", holder, str(tmp_path)], cwd=repo, check=True, timeout=30)
+    monkeypatch.setattr(capture, "LOCK_WAIT_SECONDS", 0.5)
+    capture_line(tmp_path, "demo", "after crash", "2026-10-21")
+    assert "after crash (from demo, 2026-10-21)" in inbox_items((tmp_path / "INBOX.md").read_text(encoding="utf-8"))
 
 
 def test_capture_refuses_a_root_that_is_not_plainbrain(tmp_path):

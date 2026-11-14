@@ -5,7 +5,7 @@
 - hold: Hold the package (waiting)
 
 ## Blocked
-- hold: Hold the package — Alex — 
+- hold: Hold the package — Alex — 2026-12-31
 
 ## Next hour
 Do this: No usable next action today.
