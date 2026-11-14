@@ -100,6 +100,10 @@ def summary_line(row: dict) -> str:
         where = "no remote" if not row["remote"] else f"{len(row['branches'])} branch" + (
             "" if len(row["branches"]) == 1 else "es")
         parts.append(f"{commits} unpushed {word} on {where}" + (f" since {since}" if since else ""))
+    elif row["branches"]:
+        # Ahead of its own upstream, but every commit is already on another remote branch: not unpushed, still unmerged.
+        count = len(row["branches"])
+        parts.append(f"{count} branch{'' if count == 1 else 'es'} ahead of upstream, commits already on a remote")
     changed = sum(t["changed"] for t in row["trees"])
     untracked = sum(t["untracked"] for t in row["trees"])
     if changed:

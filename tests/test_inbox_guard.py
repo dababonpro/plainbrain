@@ -29,6 +29,23 @@ def test_denies_shell_rewrites_run_in_this_folder():
     assert _deny(_claude("Bash", {"command": "sed -i 's/a/b/' INBOX.md"}))
 
 
+def test_denies_powershell_dotnet_and_new_item_rewrites():
+    for command in (
+        f'[IO.File]::WriteAllText("{INBOX}", "")',
+        '[System.IO.File]::WriteAllLines("INBOX.md", $lines)',
+        '$w = New-Object System.IO.StreamWriter("INBOX.md"); $w.Close()',
+        "New-Item INBOX.md -Force",
+        "ni INBOX.md -Force",
+        "perl -pi -e 's/a/b/' INBOX.md",
+    ):
+        assert _deny(_claude("PowerShell", {"command": command})), command
+
+
+def test_allows_powershell_reads_of_this_inbox():
+    for command in ("Get-Content INBOX.md", '[IO.File]::ReadAllText("INBOX.md")', "Select-String -Path INBOX.md -Pattern x"):
+        assert not _deny(_claude("PowerShell", {"command": command})), command
+
+
 def test_allows_a_lone_capture_command():
     command = 'python scripts/brain.py capture --root . --repo demo --text "hello"'
     assert not _deny(_claude("Bash", {"command": command}))

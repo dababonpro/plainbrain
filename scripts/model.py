@@ -113,6 +113,8 @@ def _unusable_reason(fields: dict[str, str], duplicate: bool) -> str | None:
     blocked_on = _value(fields, "blocked_on") or ""
     if status == "waiting" and blocked_on == "":
         return "waiting without blocked_on"
+    if status == "waiting" and follow == "":
+        return "waiting without follow_up"
     if status == "someday" and follow == "":
         return "someday without follow_up"
     for key in ("opened", "due", "requested_on"):

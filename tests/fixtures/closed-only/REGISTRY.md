@@ -9,7 +9,7 @@ kind: task
 status: waiting
 next: Ask Alex
 blocked_on: Alex
-follow_up:
+follow_up: 2026-12-31
 pointer:
 opened: 2026-10-01
 updated: 2026-10-01

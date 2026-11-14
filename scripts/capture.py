@@ -1,11 +1,10 @@
 """Append-only capture. A session may add a line; it may not rewrite the inbox."""
-import os
 import re
-import time
 from collections import Counter
 from contextlib import contextmanager
 from pathlib import Path
 
+from scripts.filelock import hold
 from scripts.model import RegistryParseError, inbox_items, parse_registry, valid_date
 from scripts.unshipped import scan_repo, summary_line
 
@@ -14,41 +13,14 @@ class CaptureError(Exception):
 
 
 LOCK_WAIT_SECONDS = 10.0
-LOCK_STALE_SECONDS = 60.0
 
 
 @contextmanager
 def inbox_lock(root: Path):
     """One writer at a time. Two sessions finishing together must not lose a line."""
-    lock = Path(root) / "INBOX.md.lock"
-    lock.parent.mkdir(parents=True, exist_ok=True)
-    deadline = time.monotonic() + LOCK_WAIT_SECONDS
-    while True:
-        try:
-            handle = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            break
-        except (FileExistsError, PermissionError):
-            # Windows reports PermissionError while another process is deleting the lock.
-            try:
-                if time.time() - lock.stat().st_mtime > LOCK_STALE_SECONDS:
-                    lock.unlink()
-                    continue
-            except FileNotFoundError:
-                continue
-            except PermissionError:
-                pass
-            if time.monotonic() > deadline:
-                raise CaptureError("INBOX.md is locked by another capture; try again")
-            time.sleep(0.05)
-    try:
-        os.write(handle, str(os.getpid()).encode("ascii"))
-        os.close(handle)
+    with hold(Path(root) / "INBOX.md.lock", LOCK_WAIT_SECONDS,
+              CaptureError("INBOX.md is locked by another capture; try again")):
         yield
-    finally:
-        try:
-            lock.unlink()
-        except FileNotFoundError:
-            pass
 
 
 REPO_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
@@ -117,10 +89,13 @@ def repair(text: str) -> str:
         return _skeleton()
     if _brain_dump_is_last(text):
         return text if text.endswith("\n") else text + "\n"
+    # Only stray bullets from the intro and Triage Rules move into Brain Dump. The owner's own sections keep their
+    # lines, and Brain Dump keeps every line as written, including indented details and prose under a bullet.
     intro: list[str] = []
     triage_prose: list[str] = []
-    capture_bullets: list[str] = []
-    other: list[str] = []
+    strays: list[str] = []
+    brain: list[str] = []
+    others: list[list[str]] = []
     seen_triage: set[str] = set()
     section = "intro"
     for line in text.splitlines():
@@ -132,7 +107,13 @@ def repair(text: str) -> str:
                 section = "brain"
             else:
                 section = "other"
-                other.append(line)
+                others.append([line])
+            continue
+        if section == "brain":
+            brain.append(line)
+            continue
+        if section == "other":
+            others[-1].append(line)
             continue
         if line.startswith("# ") and section == "intro":
             continue
@@ -143,14 +124,12 @@ def repair(text: str) -> str:
             if section == "triage" and body in TRIAGE_BODIES:
                 seen_triage.add(body)
             else:
-                capture_bullets.append(f"- {body}")
+                strays.append(f"- {body}")
             continue
         if section == "intro":
             intro.append(line)
-        elif section == "triage" and line.strip():
-            triage_prose.append(line)
         elif line.strip():
-            other.append(line)
+            triage_prose.append(line)
     intro_text = "\n".join(intro).strip() or DEFAULT_INTRO
     present = [f"- {body}" for body in TRIAGE_BODIES if body in seen_triage]
     missing = [f"- {body}" for body in TRIAGE_BODIES if body not in seen_triage]
@@ -162,11 +141,16 @@ def repair(text: str) -> str:
         parts.extend([TRIAGE_PROSE, ""])
     parts.extend(present + missing)
     parts.append("")
-    if other:
-        parts.extend(other)
+    for block in others:
+        while len(block) > 1 and not block[-1].strip():
+            block.pop()
+        parts.extend(block)
         parts.append("")
+    while brain and not brain[0].strip():
+        brain.pop(0)
     parts.extend(["## Brain Dump", ""])
-    parts.extend(capture_bullets)
+    parts.extend(strays)
+    parts.extend(brain)
     result = "\n".join(parts).rstrip() + "\n"
     assert_keeps(text, result)
     return result

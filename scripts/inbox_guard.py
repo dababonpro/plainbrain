@@ -40,7 +40,13 @@ _PATH_KEYS = {"path", "file_path", "filepath", "target_file", "targetfile", "fil
 _PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+?)\s*$", re.MULTILINE)
 _WRITE_WORDS = re.compile(
     r"\b(set-content|out-file|add-content|clear-content|remove-item|copy-item|move-item|"
-    r"del|erase|rm|cp|mv|copy|move|ren|tee|truncate)\b"
+    r"del|erase|rm|cp|mv|copy|move|ren|tee|truncate|"
+    # PowerShell items: New-Item -Force empties an existing file.
+    r"new-item|ni|set-item|rename-item|rni)\b"
+    # .NET file calls from PowerShell, such as [IO.File]::WriteAllText(...) or a StreamWriter.
+    r"|\[(?:system\.)?io\.(?:file|fileinfo|streamwriter|filestream)\]::(?!read|exists|open(?:read|text)\b)"
+    r"|\bnew-object\s+(?:system\.)?io\.(?:streamwriter|filestream)\b"
+    r"|\bperl\s+(-\S*\s+)*-\S*i"
     r"|\bsed\s+(-\S*\s+)*-i"
     r"|\bgit\s+(checkout|restore|reset|stash|clean)\b",
     re.IGNORECASE,

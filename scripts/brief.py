@@ -73,8 +73,10 @@ def since_lines(
         for item in items:
             opened = item.fields.get("opened", "").strip()
             updated = item.fields.get("updated", "").strip()
-            changed = (DATE_RE.fullmatch(opened) is not None and opened > previous_date) or (
-                DATE_RE.fullmatch(updated) is not None and updated > previous_date
+            # Dates have no time, so a change made after the previous brief ran, on the same day, carries that
+            # brief's date. Count the previous brief's day too: a same-day change may show twice, but never not at all.
+            changed = (DATE_RE.fullmatch(opened) is not None and opened >= previous_date) or (
+                DATE_RE.fullmatch(updated) is not None and updated >= previous_date
             )
             if changed:
                 lines.append(_item_line(item))
@@ -176,6 +178,8 @@ def blocked_lines(items: list[Item], today: str) -> list[str]:
         if item.reason is not None or item.id in seen:
             continue
         status = item.fields.get("status", "").strip()
+        if status == "done":
+            continue
         blocked_on = item.fields.get("blocked_on", "").strip()
         follow = item.fields.get("follow_up", "").strip()
         due = DATE_RE.fullmatch(follow) is not None and follow <= today
@@ -293,7 +297,17 @@ def unshipped_lines(root: Path, today: str) -> tuple[list[str], list[str]]:
 
 
 def _names_id(line: str, item_id: str) -> bool:
-    return re.search(rf"(?<![a-z0-9]){re.escape(item_id.casefold())}(?![a-z0-9])", line.casefold()) is not None
+    """True when the line is about this item.
+
+    The documented form `<id>: ...` always counts. Elsewhere in the line only a hyphenated id counts, such as
+    `website-chat-password`: a one-word id like `review` or `taxes` is an ordinary word and would match unrelated lines.
+    """
+    folded, wanted = line.casefold(), item_id.casefold()
+    if re.match(rf"\s*{re.escape(wanted)}\s*:", folded):
+        return True
+    if "-" not in wanted:
+        return False
+    return re.search(rf"(?<![a-z0-9-]){re.escape(wanted)}(?![a-z0-9-])", folded) is not None
 
 
 def _quote(line: str) -> str:

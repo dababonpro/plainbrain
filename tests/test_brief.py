@@ -227,3 +227,38 @@ def test_dashboard_counts_decisions_due(tmp_path):
     _note(tmp_path / "knowledge", "two.md", "decide_by: 2026-11-01\n")
     assert write_brief(tmp_path, "2026-11-11") == 0
     assert "Decisions due: 2. See the brief.\n" in (tmp_path / "DASHBOARD.md").read_text(encoding="utf-8")
+
+
+def test_a_done_item_with_an_old_follow_up_is_not_blocked():
+    from scripts.brief import blocked_lines
+    from scripts.model import parse_registry
+    done = _due_item("finished", "").replace("status: active", "status: done").replace("follow_up:\n", "follow_up: 2026-11-01\n")
+    waiting = _due_item("on-hold", "", "waiting").replace("follow_up: 2026-12-20", "follow_up: 2026-11-01")
+    items = parse_registry("# Registry\n\nfocus:\n\n" + done + "\n" + waiting).items
+    assert blocked_lines(items, "2026-11-11") == ["- on-hold: Title of on-hold — Sam — 2026-11-01"]
+
+
+def test_since_yesterday_includes_a_change_made_later_on_the_previous_briefs_day():
+    from scripts.brief import since_lines
+    from scripts.model import parse_registry
+    later = _due_item("same-day", "").replace("updated: 2026-11-01", "updated: 2026-11-10")
+    older = _due_item("older", "")
+    items = parse_registry("# Registry\n\nfocus:\n\n" + later + "\n" + older).items
+    lines = since_lines(items, "", "", "2026-11-10", 0)
+    assert "- same-day: Title of same-day (active)" in lines
+    assert not any("older" in line for line in lines)
+
+
+def test_a_one_word_id_clashes_only_when_it_leads_the_line():
+    from scripts.brief import inbox_clashes
+    from scripts.model import parse_registry
+    items = parse_registry("# Registry\n\nfocus:\n\n" + _due_item("review", "") + "\n" + _due_item("chat-password", "")).items
+    lines = [
+        "code review for the API is finished (from demo, 2026-11-10)",
+        "review: booked with Sam, marked done (from demo, 2026-11-10)",
+        "rotated the chat-password secret (from demo, 2026-11-10)",
+    ]
+    found = inbox_clashes(items, lines)
+    assert len(found) == 2
+    assert found[0].startswith("- review (active): review: booked")
+    assert found[1].startswith("- chat-password (active): rotated")
