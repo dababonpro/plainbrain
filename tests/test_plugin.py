@@ -49,6 +49,8 @@ def fake_home(tmp_path, monkeypatch):
     folder = tmp_path / "home"
     folder.mkdir()
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: folder))
+    monkeypatch.setenv("HOME", str(folder))         # `~` is expanded from these, not from Path.home
+    monkeypatch.setenv("USERPROFILE", str(folder))
     return folder
 
 
@@ -111,9 +113,21 @@ def test_data_root_rules(tmp_path, fake_home, monkeypatch):
     assert home.data_root(checkout) == tmp_path / "named"       # an explicit folder always wins
 
 
-def _run(code_or_script, env_home, stdin="", plugin=True):
+def test_a_leading_tilde_in_the_recorded_path_or_the_variable_is_expanded(tmp_path, fake_home, monkeypatch):
+    monkeypatch.delenv("BRAIN_ROOT", raising=False)
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(tmp_path / "checkout"))
+    (fake_home / "brain").mkdir()
+    (fake_home / ".plainbrain").write_text("~/brain\n", encoding="utf-8")
+    assert home.recorded_folder() == fake_home / "brain"
+    assert home.data_root(tmp_path / "checkout") == fake_home / "brain"
+    monkeypatch.setenv("BRAIN_ROOT", "~/other")
+    assert home.data_root(tmp_path / "checkout") == fake_home / "other"
+
+
+def _run(code_or_script, env_home, stdin="", plugin=True, extra=None):
     env = {**os.environ, "HOME": str(env_home), "USERPROFILE": str(env_home), "PYTHONPATH": str(ROOT)}
     env.pop("BRAIN_ROOT", None)
+    env.update(extra or {})
     if plugin:
         env["CLAUDE_PLUGIN_ROOT"] = str(ROOT)
     else:
@@ -140,17 +154,77 @@ def test_guard_as_a_plugin_protects_the_recorded_folder_not_the_install_folder(t
     assert "deny" in _run(guard, env_home, _edit(ROOT / BOX), plugin=False).stdout  # in a folder of its own, as before
 
 
-def test_mcp_server_as_a_plugin_writes_nowhere_until_setup(tmp_path):
+def _bare(tool="Write"):
+    """An edit to a bare file name from a tool that did not say which folder it ran in."""
+    return json.dumps({"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": {"file_path": BOX, "content": "x"}})
+
+
+def test_guard_as_a_plugin_allows_everything_until_there_is_a_folder(tmp_path):
+    env_home = tmp_path / "home"
+    env_home.mkdir()
+    guard = [str(ROOT / "scripts" / "inbox_guard.py")]
+    shell = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": f"echo x > {BOX}"}})
+    for payload in (_edit(ROOT / BOX), _edit(tmp_path / "elsewhere" / BOX), _bare(), shell):
+        assert "deny" not in _run(guard, env_home, payload).stdout, payload           # before setup
+    (env_home / ".plainbrain").write_text((tmp_path / "gone").as_posix() + "\n", encoding="utf-8")
+    for payload in (_edit(ROOT / BOX), _edit(tmp_path / "gone" / BOX), _bare(), shell):
+        assert "deny" not in _run(guard, env_home, payload).stdout, payload           # the recorded folder is gone
+
+
+def test_guard_as_a_plugin_does_not_guess_when_the_tool_gives_no_folder(tmp_path):
+    env_home = tmp_path / "home"
+    env_home.mkdir()
+    folder = tmp_path / "brain"
+    folder.mkdir()
+    (env_home / ".plainbrain").write_text(folder.as_posix() + "\n", encoding="utf-8")
+    guard = [str(ROOT / "scripts" / "inbox_guard.py")]
+    assert "deny" not in _run(guard, env_home, _bare()).stdout           # most likely another project's file
+    assert "deny" in _run(guard, env_home, _edit(folder / BOX)).stdout    # the full path is still caught
+    assert "deny" in _run(guard, env_home, _bare(), plugin=False).stdout  # in a folder of its own: assume the worst
+
+
+def test_guard_as_a_plugin_takes_the_named_folder_and_expands_a_tilde(tmp_path):
+    env_home = tmp_path / "home"
+    (env_home / "brain").mkdir(parents=True)
+    named = tmp_path / "named"
+    named.mkdir()
+    guard = [str(ROOT / "scripts" / "inbox_guard.py")]
+    (env_home / ".plainbrain").write_text("~/brain\n", encoding="utf-8")
+    assert "deny" in _run(guard, env_home, _edit(env_home / "brain" / BOX)).stdout
+    extra = {"BRAIN_ROOT": str(named)}
+    assert "deny" in _run(guard, env_home, _edit(named / BOX), extra=extra).stdout
+    assert "deny" not in _run(guard, env_home, _edit(env_home / "brain" / BOX), extra=extra).stdout
+
+
+def test_mcp_server_finds_the_folder_as_soon_as_setup_has_run_in_the_same_session(tmp_path):
+    """Claude Code starts the server when the session opens, before the owner has said "Set up Plainbrain"."""
     pytest.importorskip("mcp")
     env_home = tmp_path / "home"
     env_home.mkdir()
-    probe = ["-c", "from scripts import mcp_server as m; print(m.NOT_SET); print(m.capture('repo', 'a line')); "
-                   "print(m.search('x')); print(m.latest_brief())"]
+    folder = tmp_path / "brain"
+    probe = ["-c", "import sys; from pathlib import Path; from scripts import mcp_server as m, plugin_setup\n"
+                   "print(m.capture('repo', 'a line')); print(m.search('x')); print(m.latest_brief())\n"
+                   "print(m.registry_item('a')); print(m.for_repo('repo')); print(m.open_items())\n"
+                   "plugin_setup.set_up(Path(sys.argv[1]))\n"
+                   "print(m.latest_brief()); print(m.registry_item('a'))", str(folder)]
     done = _run(probe, env_home)
     assert done.returncode == 0, done.stderr
     lines = done.stdout.splitlines()
-    assert lines[0] == "True" and "has no folder yet" in lines[1] and lines[2] == "[]" and "has no folder yet" in lines[3]
+    assert "has no folder yet" in lines[0] and lines[1] == "[]" and "has no folder yet" in lines[2]
+    assert "has no folder yet" in lines[3] and "has no folder yet" in lines[4] and lines[5] == "[]"
+    assert lines[6] == "No brief yet." and lines[7] == "REGISTRY.md is missing."   # the same process, after setup
     assert not (ROOT / ".not-set-up").exists() and not (env_home / BOX).exists()
+
+
+def test_the_folder_check_tests_this_folders_guard_even_inside_a_plugin_session(fake_home, monkeypatch):
+    from scripts import doctor
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(ROOT))
+    monkeypatch.delenv("BRAIN_ROOT", raising=False)
+    assert not (fake_home / ".plainbrain").exists()
+    assert doctor._blocks([sys.executable, str(doctor.GUARD)])
+    (fake_home / "other").mkdir()
+    (fake_home / ".plainbrain").write_text((fake_home / "other").as_posix() + "\n", encoding="utf-8")
+    assert doctor._blocks([sys.executable, str(doctor.GUARD)])
 
 
 def test_listing_icon_is_a_square_png_of_an_accepted_size():

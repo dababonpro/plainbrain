@@ -15,11 +15,17 @@ if str(CODE) not in sys.path:
 
 from scripts.home import NOT_SET_UP, data_root  # noqa: E402
 
-# The owner's folder: BRAIN_ROOT, else (as a Claude plugin) the folder setup recorded, else this checkout.
-ROOT = data_root(CODE)
-NOT_SET = ROOT is None
-if NOT_SET:
-    ROOT = CODE / ".not-set-up"  # never created; every read finds nothing
+# Left as None so the folder is looked up on every call. A test sets it to a folder of its own.
+ROOT = None
+
+
+def _root() -> Path | None:
+    """The owner's folder: BRAIN_ROOT, else (as a Claude plugin) the folder setup recorded, else this checkout.
+
+    Looked up on every call, not once at start. Claude Code starts this server when the session opens, before
+    the owner has run setup, so a value read at start would say "no folder yet" for the rest of that session.
+    None means a plugin install with no folder: there is nowhere safe to read or write."""
+    return ROOT if ROOT is not None else data_root(CODE)
 
 from mcp.server.fastmcp import FastMCP  # noqa: E402
 
@@ -45,7 +51,10 @@ def _today() -> str:
 
 
 def _registry():
-    path = ROOT / "REGISTRY.md"
+    root = _root()
+    if root is None:
+        return None
+    path = root / "REGISTRY.md"
     if not path.is_file():
         return None
     try:
@@ -59,9 +68,10 @@ def for_repo(repo: str) -> str:
     """What the owner owes in one repo: open registry items pointing at it, the newest inbox line
     from it, its project card's Now section, and unpushed local work. `repo` is the folder name,
     for example my-website."""
-    if NOT_SET:
+    root = _root()
+    if root is None:
         return NOT_SET_UP
-    return repo_view(ROOT, repo, _today())
+    return repo_view(root, repo, _today())
 
 
 @server.tool()
@@ -69,17 +79,19 @@ def search(query: str, limit: int = 10) -> list[dict]:
     """Ranked search over the registry, inbox, knowledge notes, project cards, and archive.
     Returns path, line, section title, and the best matching line. Use a few distinctive words,
     such as a ticket key, a person, or a repo name."""
-    if NOT_SET:
+    root = _root()
+    if root is None:
         return []
-    return ranked_search(ROOT, query, max(1, min(limit, 30)))
+    return ranked_search(root, query, max(1, min(limit, 30)))
 
 
 @server.tool()
 def registry_item(item_id: str) -> str:
     """The full registry block for one commitment id, for example website-chat-password."""
-    if NOT_SET:
+    root = _root()
+    if root is None:
         return NOT_SET_UP
-    path = ROOT / "REGISTRY.md"
+    path = root / "REGISTRY.md"
     if not path.is_file():
         return "REGISTRY.md is missing."
     lines = path.read_text(encoding="utf-8").splitlines()
@@ -128,9 +140,10 @@ def open_items(area: str = "", status: str = "active") -> list[dict]:
 @server.tool()
 def latest_brief() -> str:
     """Today's brief if it exists, else the newest one, with its date in the first line."""
-    if NOT_SET:
+    root = _root()
+    if root is None:
         return NOT_SET_UP
-    path = latest_brief_path(ROOT / "reviews" / "daily")
+    path = latest_brief_path(root / "reviews" / "daily")
     if path is None:
         return "No brief yet."
     return path.read_text(encoding="utf-8")
@@ -141,10 +154,11 @@ def capture(repo: str, text: str) -> str:
     """Append one sentence to the owner's inbox for tomorrow's brief: what happened and what is left.
     `repo` is the current folder name. Name a registry id first when the fact is about one,
     as in "website-chat-password: rotated; left: update the secret in prod". Returns the line."""
-    if NOT_SET:
+    root = _root()
+    if root is None:
         return NOT_SET_UP
     try:
-        return capture_line(ROOT, repo, text, _today())
+        return capture_line(root, repo, text, _today())
     except CaptureError as exc:
         return f"Not captured: {exc}"
 

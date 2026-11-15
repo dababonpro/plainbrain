@@ -22,7 +22,7 @@ def recorded_folder() -> Path | None:
         named = pointer_path().read_text(encoding="utf-8").strip()
     except OSError:
         return None
-    folder = Path(named) if named else None
+    folder = Path(named).expanduser() if named else None
     return folder if folder and folder.is_dir() else None
 
 
@@ -35,7 +35,7 @@ def data_root(checkout: Path) -> Path | None:
     else `checkout`. None means a plugin install that has not been set up, so there is nowhere safe to write."""
     named = os.environ.get("BRAIN_ROOT", "").strip()
     if named:
-        return Path(named)
+        return Path(named).expanduser()
     if as_plugin():
         return recorded_folder()
     return checkout
