@@ -1,6 +1,7 @@
 """Plainbrain installed as a Claude plugin: the manifest, the setup script, and finding the owner's folder."""
 import json
 import os
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -150,3 +151,11 @@ def test_mcp_server_as_a_plugin_writes_nowhere_until_setup(tmp_path):
     lines = done.stdout.splitlines()
     assert lines[0] == "True" and "has no folder yet" in lines[1] and lines[2] == "[]" and "has no folder yet" in lines[3]
     assert not (ROOT / ".not-set-up").exists() and not (env_home / BOX).exists()
+
+
+def test_listing_icon_is_a_square_png_of_an_accepted_size():
+    data = (ROOT / ".claude-plugin" / "icon.png").read_bytes()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    width, height = struct.unpack(">II", data[16:24])
+    # The directory takes a square PNG of 512 to 2048 px a side, under 2 MB, and only at first submission.
+    assert width == height and 512 <= width <= 2048 and len(data) < 2 * 1024 * 1024

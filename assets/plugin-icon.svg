@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Plainbrain listing icon, design B. The shape of the site's diagram: three plain files feed one brief,
+       and the lime tick is your approval. Full-bleed paper background so it survives a rounded or circular mask.
+       Render to PNG at 1024x1024 with headless Chrome; the directory does not accept SVG. -->
+  <rect width="1024" height="1024" fill="#f5f2ea"/>
+  <g fill="#161816">
+    <rect x="150" y="232" width="260" height="120" rx="40"/>
+    <rect x="150" y="452" width="260" height="120" rx="40"/>
+    <rect x="150" y="672" width="260" height="120" rx="40"/>
+    <rect x="590" y="352" width="320" height="320" rx="64"/>
+  </g>
+  <path d="M410 292H500V732H410M410 512H590" fill="none" stroke="#161816" stroke-width="30" stroke-linejoin="round"/>
+  <circle cx="500" cy="512" r="40" fill="#8cc20a" stroke="#161816" stroke-width="22"/>
+  <path d="M672 516l52 52 100-108" fill="none" stroke="#8cc20a" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
