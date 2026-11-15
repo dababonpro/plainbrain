@@ -4,11 +4,37 @@ Speaks the hook formats of Claude Code and Codex (PreToolUse), Cursor (preToolUs
 and Antigravity (PreToolUse with toolCall). Codex file edits arrive as apply_patch text, so the patch's file
 headers are read as paths."""
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
-INBOX = Path(__file__).resolve().parents[1] / "INBOX.md"
+
+
+AS_PLUGIN = bool(os.environ.get("CLAUDE_PLUGIN_ROOT"))
+
+
+def _home() -> Path | None:
+    """The folder whose inbox is guarded, or None when there is none to guard.
+
+    In the owner's own folder that is this checkout. Run as a Claude plugin, the script sits in the plugin's
+    install folder, so it guards BRAIN_ROOT when that is set, else the folder that setup recorded. Before setup,
+    or when that folder is gone, a plugin has no inbox, and the guard allows everything."""
+    if not AS_PLUGIN:
+        return Path(__file__).resolve().parents[1]
+    named = os.environ.get("BRAIN_ROOT", "").strip()
+    if not named:
+        try:
+            named = (Path.home() / ".plainbrain").read_text(encoding="utf-8").strip()
+        except OSError:
+            named = ""
+    folder = Path(named).expanduser() if named else None
+    return folder if folder and folder.is_dir() else None
+
+
+HOME = _home()
+# With no folder, this path names a file that never exists, so no edit can match it.
+INBOX = (HOME or Path(__file__).resolve().parents[1] / ".not-set-up") / "INBOX.md"
 
 WRITE_TOOLS = {
     "write",
@@ -85,23 +111,27 @@ def _cwd(payload: dict) -> str:
 
 def _is_inbox(path: str, cwd: str = "") -> bool:
     key = _norm(path)
-    if Path(key).name != "inbox.md":
+    if HOME is None or Path(key).name != "inbox.md":
         return False
     if re.match(r"^[a-z]:/", key) or key.startswith("/"):
         return key == INBOX_KEY
     if not cwd:
-        return True
+        # The folder the tool ran in is unknown. In the owner's own folder, assume the worst. As a plugin the
+        # hook runs in every project, where a bare file of this name is most likely someone else's.
+        return not AS_PLUGIN
     return _norm(f"{cwd.rstrip('/')}/{key}").replace("/./", "/") == INBOX_KEY
 
 
 def _mentions_inbox(command: str, cwd: str) -> bool:
     lowered = command.replace("\\", "/").casefold()
-    if "inbox.md" not in lowered:
+    if HOME is None or "inbox.md" not in lowered:
         return False
     if INBOX_KEY in _norm(lowered):
         return True
     # A bare INBOX.md counts when the shell runs in Plainbrain, or when the folder is unknown.
-    return not cwd or _norm(cwd).rstrip("/") == ROOT_KEY
+    if not cwd:
+        return not AS_PLUGIN
+    return _norm(cwd).rstrip("/") == ROOT_KEY
 
 
 def _paths(obj, found: list[str]) -> None:

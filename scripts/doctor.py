@@ -47,6 +47,10 @@ def _edit() -> str:
 
 
 def _blocks(argv: list[str], env=None) -> bool:
+    # This checks the guard that belongs to this folder. When the check runs inside Claude Code with the
+    # Plainbrain plugin on, the plugin's variable would make the guard protect the plugin's folder instead,
+    # and a working guard would be reported as broken.
+    env = {k: v for k, v in (env or os.environ).items() if k != "CLAUDE_PLUGIN_ROOT"}
     try:
         done = subprocess.run(argv, input=_edit(), capture_output=True, text=True, timeout=30, env=env)
     except (OSError, subprocess.SubprocessError):

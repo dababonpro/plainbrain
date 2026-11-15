@@ -47,6 +47,21 @@ On macOS and Linux, use `python3` if `python` is not found. If pip refuses to in
 
 `init` creates `REGISTRY.md`, `INBOX.md`, and `CONTEXT.md` with one example commitment. Pass `--no-example` to start empty, and use `--areas`, `--capacity`, and `--about` to set your context. If the files already exist, `init` changes nothing. The brief is written to `reviews/daily/YYYY-MM-DD.md`.
 
+## Install as a Claude plugin
+
+Plainbrain can also be installed as a plugin in Claude Code. The plugin holds the code; your commitments, inbox and notes stay in a folder you own. After installing, say "Set up Plainbrain". The agent asks where to put your folder, creates it from the plugin's own copy of this template, and runs the same first setup as above.
+
+What the plugin adds, and everything it runs:
+
+- **Skills:** `setup` and `plainbrain`, plus the note, retrieval and review skills this template ships.
+- **A hook:** before a file edit or a shell command, it runs `scripts/inbox_guard.py` and denies a direct edit to your inbox file. It reads the tool call and nothing else.
+- **A local MCP server:** `scripts/mcp_server.py`, over stdio, so an agent in any project can search your notes, read your commitments and add one line to your inbox. Adding that line is its only write.
+- **One file outside your folder:** setup writes the path of your folder to `.plainbrain` in your home folder, so the hook and the server can find it. Delete that file to disconnect the plugin from your folder; your folder is untouched.
+
+The plugin uses no network, sends nothing anywhere, and stores no keys. It needs Python 3.11 or newer on your machine, and the MCP server needs the `mcp` package, which setup installs with your say-so. The hook is a shell script, so on Windows it needs Git for Windows.
+
+Tested on Windows in Claude Code. The server starts with the `python` command; on macOS and Linux, where the command is often `python3`, the skills and the hook work and the server may not start.
+
 ## What a brief looks like
 
 After setup, saying "Brief" writes a report like this from your own files. A deterministic Python script writes it, so it reports only what your files contain.
