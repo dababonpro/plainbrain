@@ -23,7 +23,8 @@ A knowledge base drifts. Links break, facts go stale, and notes nobody links to 
    - wikilinks that resolve to no note, ignoring links inside code
    - a Limits section in reference, decision, procedure and lesson notes
    - notes no other note in the folder links to, and that name no registry item
-   - notes recorded long ago with no later review date
+   - notes recorded long ago with no later review date, and notes marked `status: stale`
+   - `<untrusted-source>` fences with no `src`, no `fetched` date or no closing tag, and fenced text that is not in its source when that source is a file saved inside the folder. A fence whose source is a link, or a file outside the folder, is not compared; say so
 3. Read the notes the inventory flagged, and remove false alarms before reporting. A link written as an example, or a link valid from the vault root, is not broken.
 4. Where the person asked for it, add content proposals: material worth its own note, notes that repeat each other, and facts that look superseded by a newer note. Quote at most one line, and link the note.
 5. Write the report and hand it over. Do not apply anything.

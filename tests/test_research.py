@@ -104,3 +104,68 @@ def test_unreadable_review_or_decide_date_is_a_metadata_proposal(tmp_path):
         ("a.md", "metadata", "Not a YYYY-MM-DD date: review_on: 9 Nov 2026."),
         ("b.md", "metadata", "Not a YYYY-MM-DD date: decide_by: 2026-11-31."),
     ]
+
+
+FENCED = NOTE + '\n<untrusted-source src="{src}" fetched="{fetched}">\nThe pump runs   at 40 psi.\n{close}\n'
+
+
+def _quote_findings(tmp_path, **parts):
+    src = tmp_path / "knowledge"
+    values = {"src": "raw/page.txt", "fetched": "2026-11-07", "close": "</untrusted-source>", **parts}
+    _write(src, "a.md", FENCED.format(**values))
+    _write(src, "b.md", NOTE.replace("[[b]]", "[[a]]"))
+    _write(src / "raw", "page.txt", "Intro.\nThe pump runs at\n40 psi. More.")
+    return [p["found"] for p in inventory(src, "2026-11-08")[0] if p["kind"] == "quote"]
+
+
+def test_fenced_text_that_matches_its_saved_source_raises_nothing(tmp_path):
+    assert _quote_findings(tmp_path) == []
+
+
+def test_fenced_text_from_a_link_is_not_compared(tmp_path):
+    assert _quote_findings(tmp_path, src="https://example.com/page") == []
+
+
+def test_fence_without_source_date_or_close_is_reported(tmp_path):
+    found = _quote_findings(tmp_path, src="", fetched="last week", close="")
+    assert len(found) == 1
+    assert "no src" in found[0] and "no fetched date" in found[0] and "not closed" in found[0]
+
+
+def test_fenced_text_missing_from_its_saved_source_is_reported(tmp_path):
+    src = tmp_path / "knowledge"
+    found = _quote_findings(tmp_path)
+    assert found == []
+    (src / "raw" / "page.txt").write_text("The pump runs at 60 psi.", encoding="utf-8")
+    found = [p["found"] for p in inventory(src, "2026-11-08")[0] if p["kind"] == "quote"]
+    assert "is not in raw/page.txt" in found[0]
+
+
+def test_fence_in_code_and_source_outside_the_folder_are_left_alone(tmp_path):
+    src = tmp_path / "knowledge"
+    _write(tmp_path, "outside.txt", "nothing alike")
+    _write(src, "a.md", NOTE + '\n`<untrusted-source>` is the fence.\n\n```\n<untrusted-source>\nexample\n```\n'
+           '\n<!-- <untrusted-source src="link or file" fetched="YYYY-MM-DD"> and </untrusted-source> -->\n'
+           '\n<untrusted-source src="../outside.txt" fetched="2026-11-07">\nThe pump.\n</untrusted-source>\n')
+    _write(src, "b.md", NOTE.replace("[[b]]", "[[a]]"))
+    assert [p for p in inventory(src, "2026-11-08")[0] if p["kind"] == "quote"] == []
+
+
+def test_unclosed_fence_before_second_fence_and_empty_fence_are_reported(tmp_path):
+    src = tmp_path / "knowledge"
+    _write(src, "a.md", NOTE
+           + '\n<untrusted-source src="https://example.com/1" fetched="2026-11-07">\nFirst quote.\n'
+           + '\n<untrusted-source src="raw/page.txt" fetched="2026-11-07">\n   \n</untrusted-source>\n')
+    _write(src, "b.md", NOTE.replace("[[b]]", "[[a]]"))
+    _write(src / "raw", "page.txt", "Anything.")
+    found = [p["found"] for p in inventory(src, "2026-11-08")[0] if p["kind"] == "quote"]
+    assert found == ["Outside text that cannot be traced: fence 1 is not closed; fence 2 is empty."]
+
+
+def test_stale_note_is_one_high_confidence_review(tmp_path):
+    src = tmp_path / "knowledge"
+    _write(src, "a.md", NOTE.replace("status: current", "status: stale").replace("2026-11-01", "2026-09-01"))
+    _write(src, "b.md", NOTE.replace("[[b]]", "[[a]]"))
+    reviews = [p for p in inventory(src, "2026-11-08")[0] if p["kind"] == "review"]
+    assert len(reviews) == 1
+    assert reviews[0]["confidence"] == "high" and "Marked stale" in reviews[0]["found"]
