@@ -4,11 +4,27 @@ Speaks the hook formats of Claude Code and Codex (PreToolUse), Cursor (preToolUs
 and Antigravity (PreToolUse with toolCall). Codex file edits arrive as apply_patch text, so the patch's file
 headers are read as paths."""
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
-INBOX = Path(__file__).resolve().parents[1] / "INBOX.md"
+
+
+def _home() -> Path:
+    """The folder whose inbox is guarded. In the owner's own folder that is this checkout. Run as a Claude
+    plugin, the script sits in the plugin's install folder, so it guards the folder that setup recorded."""
+    here = Path(__file__).resolve().parents[1]
+    if not os.environ.get("CLAUDE_PLUGIN_ROOT"):
+        return here
+    try:
+        named = (Path.home() / ".plainbrain").read_text(encoding="utf-8").strip()
+    except OSError:
+        named = ""
+    return Path(named) if named else here
+
+
+INBOX = _home() / "INBOX.md"
 
 WRITE_TOOLS = {
     "write",

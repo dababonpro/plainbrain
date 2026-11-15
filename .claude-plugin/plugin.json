@@ -1,0 +1,24 @@
+{
+  "name": "plainbrain",
+  "displayName": "Plainbrain",
+  "version": "1.2.0",
+  "description": "A second brain in plain Markdown files on your own computer: one list of commitments, an inbox that only grows, notes worth finding again, and a daily brief. Your agent proposes; you approve.",
+  "author": {
+    "name": "DababonPro",
+    "url": "https://dababon.pro"
+  },
+  "homepage": "https://dababon.pro/plainbrain/",
+  "repository": "https://github.com/dababonpro/plainbrain",
+  "license": "MIT",
+  "keywords": ["second-brain", "notes", "commitments", "daily-brief", "markdown", "local-first"],
+  "documentationUrl": "https://dababon.pro/plainbrain/",
+  "supportUrl": "https://github.com/dababonpro/plainbrain/issues",
+  "privacyPolicyUrl": "https://dababon.pro/privacy/",
+  "skills": ["./plugin-skills/", "./.claude/skills/"],
+  "mcpServers": {
+    "plainbrain": {
+      "command": "python",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/mcp_server.py"]
+    }
+  }
+}

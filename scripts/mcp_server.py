@@ -9,9 +9,17 @@ import sys
 from datetime import date
 from pathlib import Path
 
-ROOT = Path(os.environ.get("BRAIN_ROOT") or Path(__file__).resolve().parents[1])
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+CODE = Path(__file__).resolve().parents[1]
+if str(CODE) not in sys.path:
+    sys.path.insert(0, str(CODE))
+
+from scripts.home import NOT_SET_UP, data_root  # noqa: E402
+
+# The owner's folder: BRAIN_ROOT, else (as a Claude plugin) the folder setup recorded, else this checkout.
+ROOT = data_root(CODE)
+NOT_SET = ROOT is None
+if NOT_SET:
+    ROOT = CODE / ".not-set-up"  # never created; every read finds nothing
 
 from mcp.server.fastmcp import FastMCP  # noqa: E402
 
@@ -51,6 +59,8 @@ def for_repo(repo: str) -> str:
     """What the owner owes in one repo: open registry items pointing at it, the newest inbox line
     from it, its project card's Now section, and unpushed local work. `repo` is the folder name,
     for example my-website."""
+    if NOT_SET:
+        return NOT_SET_UP
     return repo_view(ROOT, repo, _today())
 
 
@@ -59,12 +69,16 @@ def search(query: str, limit: int = 10) -> list[dict]:
     """Ranked search over the registry, inbox, knowledge notes, project cards, and archive.
     Returns path, line, section title, and the best matching line. Use a few distinctive words,
     such as a ticket key, a person, or a repo name."""
+    if NOT_SET:
+        return []
     return ranked_search(ROOT, query, max(1, min(limit, 30)))
 
 
 @server.tool()
 def registry_item(item_id: str) -> str:
     """The full registry block for one commitment id, for example website-chat-password."""
+    if NOT_SET:
+        return NOT_SET_UP
     path = ROOT / "REGISTRY.md"
     if not path.is_file():
         return "REGISTRY.md is missing."
@@ -114,6 +128,8 @@ def open_items(area: str = "", status: str = "active") -> list[dict]:
 @server.tool()
 def latest_brief() -> str:
     """Today's brief if it exists, else the newest one, with its date in the first line."""
+    if NOT_SET:
+        return NOT_SET_UP
     path = latest_brief_path(ROOT / "reviews" / "daily")
     if path is None:
         return "No brief yet."
@@ -125,6 +141,8 @@ def capture(repo: str, text: str) -> str:
     """Append one sentence to the owner's inbox for tomorrow's brief: what happened and what is left.
     `repo` is the current folder name. Name a registry id first when the fact is about one,
     as in "website-chat-password: rotated; left: update the secret in prod". Returns the line."""
+    if NOT_SET:
+        return NOT_SET_UP
     try:
         return capture_line(ROOT, repo, text, _today())
     except CaptureError as exc:
