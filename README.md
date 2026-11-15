@@ -185,9 +185,9 @@ Every command takes `--root .`. Agents follow `AGENTS.md` and use the skills in 
 |---|---|---|
 | `type` | decision, reference, procedure, lesson, technique, person, meeting | What kind of note is it? |
 | `para` | project, area, resource, archive | How actionable is it? |
-| `status` | current, superseded | Is it still true? |
+| `status` | current, stale, superseded | Is it still true? |
 
-`para` uses Tiago Forte's PARA method as a frontmatter field rather than a folder, so notes never need to move. `archive` means inactive, and `superseded` means no longer true. Delete the example notes in `knowledge/` once your own notes replace them.
+`para` uses Tiago Forte's PARA method as a frontmatter field rather than a folder, so notes never need to move. `archive` means inactive, `stale` means known to be out of date and not yet corrected, and `superseded` means no longer true. Delete the example notes in `knowledge/` once your own notes replace them.
 
 ## With or without Obsidian
 

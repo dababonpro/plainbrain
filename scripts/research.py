@@ -24,6 +24,39 @@ def _links(text: str) -> list[str]:
     return [t.strip() for t in WIKILINK.findall(text)]
 
 
+FENCE = re.compile(r"<untrusted-source\b([^>]*)>(.*?)(</untrusted-source>|\Z)", re.S)
+FENCE_ATTR = re.compile(r'(\w+)="([^"]*)"')
+
+
+def _squash(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _fence_problems(text: str, source: Path) -> list[str]:
+    """What is wrong with each `<untrusted-source>` fence outside code: no `src`, no `fetched` date, no closing tag,
+    or text that is not in the saved source. The text is compared only when `src` is a file inside the folder being
+    read, so no other file is opened; a fence whose source is a link is not compared."""
+    text = re.sub(r"```.*?```", "", text, flags=re.S)
+    text = re.sub(r"`[^`\n]*`", "", text)
+    problems = []
+    for number, found in enumerate(FENCE.finditer(text), 1):
+        attrs = dict(FENCE_ATTR.findall(found.group(1)))
+        src = attrs.get("src", "").strip()
+        if not src:
+            problems.append(f"fence {number} has no src")
+        if not valid_date(attrs.get("fetched", "")):
+            problems.append(f"fence {number} has no fetched date")
+        if not found.group(3):
+            problems.append(f"fence {number} is not closed")
+        if not src or "://" in src:
+            continue
+        saved = (source / src).resolve()
+        if source.resolve() in saved.parents and saved.is_file():
+            if _squash(found.group(2)) not in _squash(saved.read_text(encoding="utf-8", errors="replace")):
+                problems.append(f"the text in fence {number} is not in {src}")
+    return problems
+
+
 def _link_targets(vault: Path) -> set[str]:
     """Names a wikilink can resolve to in the vault: a note's name, or its path from the vault root. Only file names
     are listed here; no file outside the source is opened."""
@@ -67,6 +100,13 @@ def inventory(source: Path, today: str, vault: Path | None = None) -> tuple[list
                               "why": "A broken link hides the context it was meant to point to.",
                               "action": "Point each link at the right note, or remove it if the note was never written."})
 
+        fences = _fence_problems(text, source)
+        if fences:
+            proposals.append({**base, "kind": "quote", "confidence": "high",
+                              "found": "Outside text that cannot be traced: " + "; ".join(fences) + ".",
+                              "why": "Copied text is only evidence when it names its source and date and matches it.",
+                              "action": "Open the source, correct the text or the fence, or replace it with a summary."})
+
         if "## Limits" not in text and fm.get("type") in ("reference", "decision", "procedure", "lesson"):
             proposals.append({**base, "kind": "limits", "confidence": "medium",
                               "found": "No Limits section.",
@@ -92,7 +132,13 @@ def inventory(source: Path, today: str, vault: Path | None = None) -> tuple[list
         # A review date still ahead means the note has its next check booked; from that day on it is due.
         review_on = fm.get("review_on", "").strip("'\"")
         scheduled = valid_date(review_on)
-        if (
+        if fm.get("status") == "stale":
+            proposals.append({**base, "kind": "review", "confidence": "high",
+                              "found": "Marked stale: known to be out of date and not yet corrected.",
+                              "why": "A stale note is still found by search, and a reader may act on it.",
+                              "action": "Correct it and set `status: current`, or mark it superseded and link what "
+                                        "replaced it."})
+        elif (
             valid_date(recorded)
             and (date.fromisoformat(today) - date.fromisoformat(recorded)).days > STALE_DAYS
             and not (scheduled and review_on > today)
@@ -108,7 +154,7 @@ def inventory(source: Path, today: str, vault: Path | None = None) -> tuple[list
             proposals.append({**base, "kind": "review", "confidence": "low", "found": found,
                               "why": "Facts drift; a dated review keeps the note honest.", "action": action})
 
-    order = {"metadata": 0, "link": 1, "limits": 2, "orphan": 3, "review": 4}
+    order = {"metadata": 0, "link": 1, "quote": 2, "limits": 3, "orphan": 4, "review": 5}
     proposals.sort(key=lambda x: (order[x["kind"]], x["note"]))
     for i, prop in enumerate(proposals, 1):
         prop["id"] = f"P-{i:02d}"
