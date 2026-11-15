@@ -36,7 +36,8 @@ def test_plugin_skills_have_front_matter_and_the_template_skills_are_listed_once
 def test_hook_runs_a_script_inside_the_plugin_with_no_other_variable():
     hooks = json.loads((ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8"))["hooks"]
     command = hooks["PreToolUse"][0]["hooks"][0]["command"]
-    assert command == '"${CLAUDE_PLUGIN_ROOT}"/hooks/inbox-guard.sh'
+    # Called through sh, so it runs even where the file's executable bit was lost in a copy.
+    assert command == 'sh "${CLAUDE_PLUGIN_ROOT}/hooks/inbox-guard.sh"'
     script = (ROOT / "hooks" / "inbox-guard.sh").read_text(encoding="utf-8")
     assert script.startswith("#!/bin/sh\n") and "${CLAUDE_PLUGIN_ROOT}/scripts/inbox_guard.py" in script
     assert "curl" not in script and "wget" not in script and "pip" not in script

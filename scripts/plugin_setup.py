@@ -20,6 +20,7 @@ from scripts.home import pointer_path  # noqa: E402
 
 # What a Plainbrain folder is made of. Plugin-only files, tests and repository housekeeping stay behind.
 COPY = ("AGENTS.md", "README.md", "CHANGELOG.md", "LICENSE", "LICENSE-docs", "requirements.txt", ".gitignore",
+        "opencode.json",
         "scripts", "templates", "knowledge", "views", ".claude", ".agents", ".codex", ".cursor", ".gemini")
 SKIP = shutil.ignore_patterns("__pycache__", "*.pyc", "plugin_setup.py")
 
