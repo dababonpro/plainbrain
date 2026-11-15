@@ -24,7 +24,10 @@ def _links(text: str) -> list[str]:
     return [t.strip() for t in WIKILINK.findall(text)]
 
 
-FENCE = re.compile(r"<untrusted-source\b([^>]*)>(.*?)(</untrusted-source>|\Z)", re.S)
+FENCE = re.compile(
+    r"<untrusted-source\b([^>]*)>((?:(?!</untrusted-source>|<untrusted-source\b).)*)(</untrusted-source>)?",
+    re.S,
+)
 FENCE_ATTR = re.compile(r'(\w+)="([^"]*)"')
 
 
@@ -33,11 +36,12 @@ def _squash(text: str) -> str:
 
 
 def _fence_problems(text: str, source: Path) -> list[str]:
-    """What is wrong with each `<untrusted-source>` fence outside code: no `src`, no `fetched` date, no closing tag,
-    or text that is not in the saved source. The text is compared only when `src` is a file inside the folder being
-    read, so no other file is opened; a fence whose source is a link is not compared."""
+    """What is wrong with each `<untrusted-source>` fence outside code and HTML comments: no `src`, no `fetched` date,
+    no closing tag, empty body, or text that is not in the saved source. The text is compared only when `src` is a file
+    inside the folder being read, so no other file is opened; a fence whose source is a link is not compared."""
     text = re.sub(r"```.*?```", "", text, flags=re.S)
     text = re.sub(r"`[^`\n]*`", "", text)
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
     problems = []
     for number, found in enumerate(FENCE.finditer(text), 1):
         attrs = dict(FENCE_ATTR.findall(found.group(1)))
@@ -48,11 +52,16 @@ def _fence_problems(text: str, source: Path) -> list[str]:
             problems.append(f"fence {number} has no fetched date")
         if not found.group(3):
             problems.append(f"fence {number} is not closed")
+            continue
+        quote = _squash(found.group(2))
+        if not quote:
+            problems.append(f"fence {number} is empty")
+            continue
         if not src or "://" in src:
             continue
         saved = (source / src).resolve()
         if source.resolve() in saved.parents and saved.is_file():
-            if _squash(found.group(2)) not in _squash(saved.read_text(encoding="utf-8", errors="replace")):
+            if quote not in _squash(saved.read_text(encoding="utf-8", errors="replace")):
                 problems.append(f"the text in fence {number} is not in {src}")
     return problems
 

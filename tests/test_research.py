@@ -145,9 +145,21 @@ def test_fence_in_code_and_source_outside_the_folder_are_left_alone(tmp_path):
     src = tmp_path / "knowledge"
     _write(tmp_path, "outside.txt", "nothing alike")
     _write(src, "a.md", NOTE + '\n`<untrusted-source>` is the fence.\n\n```\n<untrusted-source>\nexample\n```\n'
+           '\n<!-- <untrusted-source src="link or file" fetched="YYYY-MM-DD"> and </untrusted-source> -->\n'
            '\n<untrusted-source src="../outside.txt" fetched="2026-11-07">\nThe pump.\n</untrusted-source>\n')
     _write(src, "b.md", NOTE.replace("[[b]]", "[[a]]"))
     assert [p for p in inventory(src, "2026-11-08")[0] if p["kind"] == "quote"] == []
+
+
+def test_unclosed_fence_before_second_fence_and_empty_fence_are_reported(tmp_path):
+    src = tmp_path / "knowledge"
+    _write(src, "a.md", NOTE
+           + '\n<untrusted-source src="https://example.com/1" fetched="2026-11-07">\nFirst quote.\n'
+           + '\n<untrusted-source src="raw/page.txt" fetched="2026-11-07">\n   \n</untrusted-source>\n')
+    _write(src, "b.md", NOTE.replace("[[b]]", "[[a]]"))
+    _write(src / "raw", "page.txt", "Anything.")
+    found = [p["found"] for p in inventory(src, "2026-11-08")[0] if p["kind"] == "quote"]
+    assert found == ["Outside text that cannot be traced: fence 1 is not closed; fence 2 is empty."]
 
 
 def test_stale_note_is_one_high_confidence_review(tmp_path):
