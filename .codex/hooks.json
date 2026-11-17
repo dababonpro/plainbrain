@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -c \"import os,runpy;p=next(c for c in ('scripts/inbox_guard.py','../scripts/inbox_guard.py') if os.path.exists(c));runpy.run_path(p,run_name='__main__')\"",
+            "command": "python -c \"import os,runpy,sys;p=next(c for c in ('scripts/inbox_guard.py','../scripts/inbox_guard.py') if os.path.exists(c));sys.argv=[p,'--codex'];runpy.run_path(p,run_name='__main__')\"",
             "statusMessage": "Checking the inbox rule",
             "timeout": 10
           }

@@ -1,8 +1,13 @@
-"""Deny agent edits to the Plainbrain INBOX.md. Reads, capture, and inbox-drop stay allowed.
+"""Deny agent edits to the Plainbrain INBOX.md, and ask the owner before a direct edit to REGISTRY.md.
+
+Reads, capture, inbox-drop and the `registry` commands stay allowed. A direct edit to REGISTRY.md is not
+denied, because AGENTS.md allows one after the owner accepts it; the hook turns it into the agent's own
+permission prompt, so the owner decides at the moment of the edit instead of the rule living only in prose.
 
 Speaks the hook formats of Claude Code and Codex (PreToolUse), Cursor (preToolUse and beforeShellExecution)
-and Antigravity (PreToolUse with toolCall). Codex file edits arrive as apply_patch text, so the patch's file
-headers are read as paths."""
+and Antigravity (PreToolUse with toolCall). Antigravity has no ask decision, so there the registry rule stays
+an instruction in AGENTS.md. Codex file edits arrive as apply_patch text, so the patch's file headers are
+read as paths."""
 import json
 import os
 import re
@@ -35,6 +40,7 @@ def _home() -> Path | None:
 HOME = _home()
 # With no folder, this path names a file that never exists, so no edit can match it.
 INBOX = (HOME or Path(__file__).resolve().parents[1] / ".not-set-up") / "INBOX.md"
+REGISTRY = INBOX.parent / "REGISTRY.md"
 
 WRITE_TOOLS = {
     "write",
@@ -60,6 +66,11 @@ REASON = (
     '--today YYYY-MM-DD --text "one sentence". '
     f'Remove an accepted triage line with: python {_HOME}/scripts/brain.py inbox-drop --root {_HOME} --line "<exact line>"'
 )
+REGISTRY_REASON = (
+    "REGISTRY.md changes go through a command after the owner accepts them: "
+    f"python {_HOME}/scripts/brain.py registry add|update|done|focus|archive --root {_HOME} ... "
+    "Edit the file by hand only when no command covers the change and the owner has accepted the exact lines."
+)
 
 _PATH_KEYS = {"path", "file_path", "filepath", "target_file", "targetfile", "file", "notebook_path"}
 # File headers in a Codex apply_patch body: Add, Update, Delete, and the target of a move.
@@ -78,10 +89,11 @@ _WRITE_WORDS = re.compile(
     re.IGNORECASE,
 )
 _REDIRECT = re.compile(r">\s*[\"']?\S*inbox\.md", re.IGNORECASE)
+_REDIRECT_REGISTRY = re.compile(r">\s*[\"']?\S*registry\.md", re.IGNORECASE)
 _QUOTED = re.compile(r'"(?:[^"\\]|\\.)*"|\'[^\']*\'')
 _CHAIN = re.compile(r"[;&|<>`\n]|\$\(")
 _OWN_COMMAND = re.compile(
-    r"^\s*(\S*python\S*|py)(\s+-\S+)*\s+\S*brain\.py\s+(capture|inbox-drop|for-repo)(\s|$)",
+    r"^\s*(\S*python\S*|py)(\s+-\S+)*\s+\S*brain\.py\s+(capture|inbox-drop|for-repo|registry)(\s|$)",
     re.IGNORECASE,
 )
 
@@ -95,6 +107,7 @@ def _norm(path: str) -> str:
 
 
 INBOX_KEY = _norm(str(INBOX))
+REGISTRY_KEY = _norm(str(REGISTRY))
 ROOT_KEY = _norm(str(INBOX.parent))
 
 
@@ -109,24 +122,36 @@ def _cwd(payload: dict) -> str:
     return ""
 
 
-def _is_inbox(path: str, cwd: str = "") -> bool:
+def _is_file(path: str, cwd: str, target: str) -> bool:
     key = _norm(path)
-    if HOME is None or Path(key).name != "inbox.md":
+    if HOME is None or Path(key).name != Path(target).name:
         return False
     if re.match(r"^[a-z]:/", key) or key.startswith("/"):
-        return key == INBOX_KEY
+        return key == target
     if not cwd:
         # The folder the tool ran in is unknown. In the owner's own folder, assume the worst. As a plugin the
         # hook runs in every project, where a bare file of this name is most likely someone else's.
         return not AS_PLUGIN
-    return _norm(f"{cwd.rstrip('/')}/{key}").replace("/./", "/") == INBOX_KEY
+    return _norm(f"{cwd.rstrip('/')}/{key}").replace("/./", "/") == target
+
+
+def _is_inbox(path: str, cwd: str = "") -> bool:
+    return _is_file(path, cwd, INBOX_KEY)
+
+
+def _is_registry(path: str, cwd: str = "") -> bool:
+    return _is_file(path, cwd, REGISTRY_KEY)
 
 
 def _mentions_inbox(command: str, cwd: str) -> bool:
+    return _mentions(command, cwd, INBOX_KEY)
+
+
+def _mentions(command: str, cwd: str, target: str) -> bool:
     lowered = command.replace("\\", "/").casefold()
-    if HOME is None or "inbox.md" not in lowered:
+    if HOME is None or Path(target).name not in lowered:
         return False
-    if INBOX_KEY in _norm(lowered):
+    if target in _norm(lowered):
         return True
     # A bare INBOX.md counts when the shell runs in Plainbrain, or when the folder is unknown.
     if not cwd:
@@ -164,8 +189,26 @@ def _claude_deny() -> dict:
     }
 
 
+def _cursor_ask() -> dict:
+    return {
+        "permission": "ask",
+        "agent_message": REGISTRY_REASON,
+        "user_message": "The agent wants to edit REGISTRY.md directly. Allow only if you accepted these exact lines.",
+    }
+
+
+def _claude_ask() -> dict:
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "ask",
+            "permissionDecisionReason": REGISTRY_REASON,
+        }
+    }
+
+
 def _own_command(command: str) -> bool:
-    """One brain.py capture/inbox-drop/for-repo call with nothing chained after it."""
+    """One brain.py capture/inbox-drop/for-repo/registry call with nothing chained after it."""
     text = re.sub(r"^\s*&\s*", "", command.strip())
     exe = re.match(r"^\"([^\"]*)\"|^'([^']*)'", text)
     if exe:
@@ -176,17 +219,22 @@ def _own_command(command: str) -> bool:
     return _OWN_COMMAND.match(bare) is not None and _CHAIN.search(bare) is None
 
 
+def _writes(command: str, redirect: re.Pattern) -> bool:
+    lowered = command.lower()
+    if _WRITE_WORDS.search(_QUOTED.sub('""', command)) or redirect.search(command):
+        return True
+    return bool(re.search(r"\b(python|py|node)\b", lowered) and re.search(r"\bopen\s*\(|\.write|writefile|\bunlink\(", lowered))
+
+
 def _shell(command: str, claude: bool, cwd: str) -> dict:
     allow = {} if claude else {"permission": "allow"}
-    if not _mentions_inbox(command, cwd):
+    inbox, registry = _mentions(command, cwd, INBOX_KEY), _mentions(command, cwd, REGISTRY_KEY)
+    if not (inbox or registry) or _own_command(command):
         return allow
-    if _own_command(command):
-        return allow
-    lowered = command.lower()
-    if _WRITE_WORDS.search(_QUOTED.sub('""', command)) or _REDIRECT.search(command):
+    if inbox and _writes(command, _REDIRECT):
         return _claude_deny() if claude else _cursor_deny()
-    if re.search(r"\b(python|py|node)\b", lowered) and re.search(r"\bopen\s*\(|\.write|writefile|\bunlink\(", lowered):
-        return _claude_deny() if claude else _cursor_deny()
+    if registry and _writes(command, _REDIRECT_REGISTRY):
+        return _claude_ask() if claude else _cursor_ask()
     return allow
 
 
@@ -208,6 +256,7 @@ def _antigravity(payload: dict, call: dict) -> dict:
     verdict = decide({"hook_event_name": "PreToolUse", "tool_name": name, "tool_input": tool_input, "cwd": cwd})
     if verdict.get("hookSpecificOutput", {}).get("permissionDecision") == "deny":
         return {"decision": "deny", "reason": REASON}
+    # Antigravity has no ask decision; the registry rule stays an instruction in AGENTS.md there.
     return {"decision": "allow"}
 
 
@@ -231,14 +280,17 @@ def decide(payload: dict) -> dict:
     patch = tool_input.get("command") if isinstance(tool_input, dict) else None
     if isinstance(patch, str) and "*** Begin Patch" in patch:
         found.extend(match.group(1) for match in _PATCH_FILE.finditer(patch))
-    if not any(_is_inbox(path, cwd) for path in found):
-        return {} if claude else {"permission": "allow"}
-    if tool in READ_TOOLS:
-        return {} if claude else {"permission": "allow"}
+    allow = {} if claude else {"permission": "allow"}
+    inbox = any(_is_inbox(path, cwd) for path in found)
+    registry = any(_is_registry(path, cwd) for path in found)
+    if not (inbox or registry) or tool in READ_TOOLS:
+        return allow
     writing = tool in WRITE_TOOLS or any(part in tool for part in ("write", "edit", "delete", "patch"))
-    if writing:
+    if not writing:
+        return allow
+    if inbox:
         return _claude_deny() if claude else _cursor_deny()
-    return {} if claude else {"permission": "allow"}
+    return _claude_ask() if claude else _cursor_ask()
 
 
 def main() -> int:
@@ -251,6 +303,10 @@ def main() -> int:
     if not isinstance(payload, dict):
         payload = {}
     result = decide(payload)
+    # Codex parses permissionDecision "ask" but does not support it: it marks the hook failed, shows an error,
+    # and runs the tool anyway. Its hook passes --codex, so there the registry rule stays an AGENTS.md instruction.
+    if "--codex" in sys.argv[1:] and result.get("hookSpecificOutput", {}).get("permissionDecision") == "ask":
+        result = {}
     sys.stdout.write(json.dumps(result))
     denied = result.get("permission") == "deny" or result.get("decision") == "deny" or (
         result.get("hookSpecificOutput", {}).get("permissionDecision") == "deny"
