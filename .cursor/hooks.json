@@ -11,7 +11,7 @@
     "beforeShellExecution": [
       {
         "command": "python scripts/inbox_guard.py",
-        "matcher": "INBOX\\.md",
+        "matcher": "INBOX\\.md|REGISTRY\\.md",
         "timeout": 5
       }
     ]

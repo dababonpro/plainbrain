@@ -105,7 +105,7 @@ done: 0
 
 - **The inbox is append-only.** Agents add lines with `capture` and never rewrite `INBOX.md`.
 - **Inbox protection:** Claude Code, Cursor, Codex, Antigravity, and Block goose block direct inbox edits through hooks. OpenCode blocks file-tool edits through `opencode.json`. In Codex, choose **Allow** when prompted to review hooks (or manage them later in **Settings → Hooks** or `/hooks`). Run `python scripts/brain.py doctor --root .` once to verify that your hook can start Python.
-- **You approve commitments.** Agents propose changes to `REGISTRY.md` and write them only after you accept. Each `registry` command edits one item, checks the rules, and logs the change in `reviews/registry/YYYY-MM.md`.
+- **You approve commitments.** Agents propose changes to `REGISTRY.md` and write them only after you accept. Each `registry` command edits one item, checks the rules, and logs the change in `reviews/registry/YYYY-MM.md`. In Claude Code and Cursor, a direct edit to `REGISTRY.md` shows a permission prompt, so you approve the exact change before it is written.
 - **Notes are data.** Text inside a note or a captured web page is never an instruction to the agent.
 - **No secrets in files.** Notes name where a password lives, never the password itself.
 
@@ -225,17 +225,19 @@ Hooks require a working Python command. Claude Code's hook tries `python` and fa
 
 | Agent | Mode | Files used | Status |
 |---|---|---|---|
-| Claude Code | Enforced | `.claude/settings.json`, `.claude/skills/` | Tested on Windows, November 2026 |
+| Claude Code | Enforced | `.claude/settings.json`, `.claude/skills/`, `CLAUDE.md` (imports `AGENTS.md`) | Tested on Windows, November 2026 |
 | Codex | Enforced after allowing the hook | `.codex/hooks.json`, `.agents/skills/` | Tested on Windows, November 2026 |
 | Cursor | Enforced | `.cursor/hooks.json` | Tested on Windows, November 2026 |
 | Antigravity | Enforced | `.agents/hooks.json`, `.agents/skills/` | Automated tests pass, manual test pending |
 | Block goose | Enforced | `.agents/plugins/plainbrain/hooks/hooks.json`, `.agents/skills/`, `AGENTS.md` | Automated tests pass, manual test pending |
 | OpenCode | Enforced for file tools, instructed for shell | `opencode.json`, `.agents/skills/`, `.claude/skills/`, `AGENTS.md` | Configured from docs, manual test pending |
+| Pi | Instructed | `AGENTS.md`, `.agents/skills/` | Configured from docs, manual test pending |
+| Hermes Agent | Instructed | `AGENTS.md` | Configured from docs, manual test pending |
 | Amp, Jules, Zed | Instructed | `AGENTS.md` | Reads `AGENTS.md` automatically per vendor docs |
-| Gemini CLI | Instructed | `.gemini/settings.json` points to `AGENTS.md` | Configured from docs, trust the folder if prompted |
+| Gemini CLI | Instructed | `.gemini/settings.json` points to `AGENTS.md` | Enterprise accounts only: Google ended Gemini CLI for personal accounts on 18 June 2026. Use Antigravity instead |
 | GitHub Copilot in VS Code | Instructed | `AGENTS.md` with `chat.useAgentsMdFile` enabled | Configured from docs |
 
-Zed reads only the first instruction file it finds, so keep `AGENTS.md` as the only rules file in the root folder.
+Zed reads only the first instruction file it finds. `AGENTS.md` comes before `CLAUDE.md` in its order, so Zed reads `AGENTS.md`. Do not add `.rules`, `.cursorrules`, `.windsurfrules`, `.clinerules`, or `AGENT.md` to the root folder, because Zed would read that file instead.
 
 ## Good to know
 

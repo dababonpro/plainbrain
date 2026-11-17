@@ -14,10 +14,14 @@ From the first team install: setup stopped people at a blank question, and did n
 - The brief lists decisions due: notes in `knowledge/` whose `review_on` or `decide_by` date has arrived or passed, with their `expected` and `breaks_if` conditions when set, and the dashboard shows how many. A date the brief cannot read is listed too, so a reminder is never dropped silently. `research` skips the 30-day age notice while `review_on` is still in the future, and reports a date it cannot read
 - A note can keep outside text word for word inside an `<untrusted-source src="..." fetched="YYYY-MM-DD">` fence. `research` reports a fence with no source, no date or no closing tag, and fenced text that is not in its source when that source is a file saved in the notes folder. A fence whose source is a link is not compared
 - A note can be `status: stale`: known to be out of date and not yet corrected. `research` lists it for review, and the retrieval skill says so before relying on it
+- In Claude Code and Cursor, a direct edit to `REGISTRY.md` shows a permission prompt naming the `registry` command to use, so the rule that you approve commitments no longer depends on the agent remembering it. `registry` commands run without a prompt
+- `CLAUDE.md` imports `AGENTS.md`, so Claude Code reads the rules even in an older version, or when you add a `CLAUDE.local.md`
+- The agent table lists Pi and Hermes Agent, which read `AGENTS.md`
 
 **Changed**
 
 - Setup ends by telling you to open the Plainbrain folder as its own project or session, and what to say there
+- Gemini CLI is marked as enterprise only: Google ended it for personal accounts on 18 June 2026. Antigravity replaces it
 - The brief treats a `waiting` item without `follow_up` as unusable, as the registry rules already said. The commands and the brief now share one rule set
 - Moving an item to `active` or `done` with a registry command empties its `blocked_on` and `follow_up`, unless the same command sets them
 - Inbox and registry writes use an operating-system lock. A crashed writer releases it at once, and no waiter can remove another writer's lock. The `.lock` files now stay in the folder between writes. Restart a running MCP server after updating, so it uses the new lock too
