@@ -208,7 +208,7 @@ def _claude_ask() -> dict:
 
 
 def _own_command(command: str) -> bool:
-    """One brain.py capture/inbox-drop/for-repo call with nothing chained after it."""
+    """One brain.py capture/inbox-drop/for-repo/registry call with nothing chained after it."""
     text = re.sub(r"^\s*&\s*", "", command.strip())
     exe = re.match(r"^\"([^\"]*)\"|^'([^']*)'", text)
     if exe:
@@ -303,6 +303,10 @@ def main() -> int:
     if not isinstance(payload, dict):
         payload = {}
     result = decide(payload)
+    # Codex parses permissionDecision "ask" but does not support it: it marks the hook failed, shows an error,
+    # and runs the tool anyway. Its hook passes --codex, so there the registry rule stays an AGENTS.md instruction.
+    if "--codex" in sys.argv[1:] and result.get("hookSpecificOutput", {}).get("permissionDecision") == "ask":
+        result = {}
     sys.stdout.write(json.dumps(result))
     denied = result.get("permission") == "deny" or result.get("decision") == "deny" or (
         result.get("hookSpecificOutput", {}).get("permissionDecision") == "deny"
