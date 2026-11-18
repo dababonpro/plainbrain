@@ -67,9 +67,13 @@ def _run(cmd: list[str], *, cwd: Path, env: dict[str, str]) -> subprocess.Comple
     return proc
 
 
+def _create_venv(venv_dir: Path) -> None:
+    venv.EnvBuilder(with_pip=True, symlinks=os.name != "nt").create(str(venv_dir))
+
+
 def _verify_core_wheel(wheel: Path, tmp_root: Path, env: dict[str, str]) -> None:
     venv_dir = tmp_root / "venv-core"
-    venv.EnvBuilder(with_pip=True).create(str(venv_dir))
+    _create_venv(venv_dir)
     bin_dir, venv_py, ext = _venv_paths(venv_dir)
 
     _run([str(venv_py), "-m", "pip", "install", "--quiet", "--no-deps", str(wheel)], cwd=tmp_root, env=env)
@@ -133,7 +137,7 @@ def _verify_core_wheel(wheel: Path, tmp_root: Path, env: dict[str, str]) -> None
 
 def _verify_mcp_extra(wheel: Path, tmp_root: Path, env: dict[str, str]) -> None:
     venv_dir = tmp_root / "venv-mcp"
-    venv.EnvBuilder(with_pip=True).create(str(venv_dir))
+    _create_venv(venv_dir)
     _, venv_py, _ = _venv_paths(venv_dir)
 
     _run([str(venv_py), "-m", "pip", "install", "--quiet", f"{wheel}[mcp]"], cwd=tmp_root, env=env)
