@@ -52,6 +52,13 @@ def test_asks_once_for_an_uncaptured_commit(tmp_path, brain):
     assert capture_nudge.decide(_payload(path), brain=brain) == {}
 
 
+def test_folder_names_with_spaces(tmp_path, brain):
+    path = _transcript(tmp_path, [_shell('cd "C:\\My Projects\\api" && git commit -m fix')])
+    out = capture_nudge.decide(_payload(path, cwd="C:\\My Projects\\web site"), brain=brain)
+    assert "git commit in api" in out["reason"]
+    assert '--repo "web site"' in out["reason"]
+
+
 def test_a_capture_after_the_work_clears_it(tmp_path, brain):
     path = _transcript(tmp_path, [
         _shell("git commit -m fix"),

@@ -33,7 +33,9 @@ STATE = Path(tempfile.gettempdir()) / "plainbrain-capture-nudge"
 _SHELL = {"bash", "powershell", "shell"}
 _OUTCOME = re.compile(r"\bgit\s+(?:-C\s+\S+\s+)?(commit)\b|\bgh\s+pr\s+(create|merge)\b", re.IGNORECASE)
 _CAPTURE = re.compile(r"brain\.py[\"']?\s+capture\b", re.IGNORECASE)
-_CD = re.compile(r"(?:\bcd|\bSet-Location|\bgit\s+-C)\s+[\"']?([A-Za-z]:[\\/][^\s;\"'&|]+|/[^\s;\"'&|]+)", re.IGNORECASE)
+# The folder after cd / Set-Location / git -C: a quoted path (which may hold spaces) or a bare one.
+_CD = re.compile(r"(?:\bcd|\bSet-Location|\bgit\s+-C)\s+(?:\"([^\"]+)\"|'([^']+)'|([A-Za-z]:[\\/][^\s;&|]+|/[^\s;&|]+))",
+                 re.IGNORECASE)
 _JIRA = re.compile(r"__(createJiraIssue|transitionJiraIssue)$")
 
 
@@ -76,7 +78,7 @@ def scan(transcript: Path, cwd: str) -> tuple[int, list[str]]:
     for name, args in _tool_calls(transcript):
         if name.lower() in _SHELL and isinstance(args.get("command"), str):
             command = args["command"]
-            folders = _CD.findall(command)
+            folders = [next(part for part in found if part) for found in _CD.findall(command)]
             where = _folder_name(folders[-1] if folders else cwd) or "?"
             for match in _OUTCOME.finditer(command):
                 total += 1
@@ -115,7 +117,7 @@ def reason(pending: list[str], cwd: str, brain: Path, today: str) -> str:
     return (
         f"Before you stop: this session finished work that is not in the owner's Plainbrain inbox yet ({listed}). "
         "Capture what the next session should know, one sentence per fact: "
-        f'python "{script}" capture --root "{brain.as_posix()}" --repo {repo} --today {today} '
+        f'python "{script}" capture --root "{brain.as_posix()}" --repo "{repo}" --today {today} '
         '--text "<what happened, and what is left>" (use the folder name of the project the work was in as '
         "--repo), or the Plainbrain MCP capture tool. Tell the owner what you captured. If nothing here is worth "
         "tracking, say so in one line and stop."

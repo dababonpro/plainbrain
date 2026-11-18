@@ -57,6 +57,23 @@ def test_leaves_an_unreadable_file_alone(tmp_path):
     assert global_hooks.status(ROOT, home=tmp_path)["cursor"] == "unreadable"
 
 
+def test_leaves_a_file_with_a_malformed_hooks_section_alone(tmp_path):
+    cases = {
+        "claude": {"hooks": None},
+        "cursor": {"version": 1, "hooks": {"preToolUse": {"not": "a list"}}},
+        "antigravity": {"mine": {"PreToolUse": "oops"}},
+    }
+    for agent, content in cases.items():
+        path = global_hooks.files(tmp_path)[agent]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(content), encoding="utf-8")
+    lines = global_hooks.install(ROOT, home=tmp_path)
+    assert all("not the expected shape" in line for line in lines), lines
+    for agent, content in cases.items():
+        assert _read(global_hooks.files(tmp_path)[agent]) == content
+    assert set(global_hooks.status(ROOT, home=tmp_path).values()) == {"unreadable"}
+
+
 def test_skips_claude_when_the_plugin_is_enabled(tmp_path):
     path = global_hooks.files(tmp_path)["claude"]
     path.parent.mkdir(parents=True)

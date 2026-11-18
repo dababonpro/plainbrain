@@ -16,7 +16,7 @@ runs. This command adds the same hooks to each agent's user-level file:
 It points each hook at this folder's own scripts, run with the Python that ran this command, so the hooks keep
 working when the agent runs elsewhere. It adds only what is missing, keeps every other setting and hook, saves a
 copy of each file it changes beside it (`<file>.bak-YYYYMMDD-HHMMSS`), and leaves a file it cannot read as JSON
-untouched. With the Plainbrain plugin enabled in Claude Code, Claude Code is skipped because the plugin already
+untouched, as is a file whose hooks section has an unexpected shape (such as `"hooks": null`). With the Plainbrain plugin enabled in Claude Code, Claude Code is skipped because the plugin already
 does this. Nothing else is written, and nothing leaves the machine."""
 import json
 import shutil
@@ -48,6 +48,23 @@ def _load(path: Path) -> dict | None:
     except (OSError, ValueError):
         return None
     return data if isinstance(data, dict) else None
+
+
+_EVENTS = {"claude": ("PreToolUse", "Stop"), "cursor": ("preToolUse", "beforeShellExecution")}
+
+
+def _editable(agent: str, data: dict) -> bool:
+    """Whether the parts this command would change have the shape it expects. A file with, say, `"hooks": null`
+    or a hook list that is not a list is treated like an unreadable file and left untouched."""
+    if agent in _EVENTS:
+        hooks = data.get("hooks", {})
+        if not isinstance(hooks, dict):
+            return False
+        return all(isinstance(hooks.get(event, []), list) for event in _EVENTS[agent])
+    for group in data.values():  # antigravity: named groups of events
+        if isinstance(group, dict) and not isinstance(group.get("PreToolUse", []), list):
+            return False
+    return True
 
 
 def _plugin_enabled(settings: dict) -> bool:
@@ -118,7 +135,7 @@ def status(root: Path, home: Path | None = None) -> dict[str, str]:
     found = {}
     for agent, path in files(home).items():
         data = _load(path)
-        if data is None:
+        if data is None or not _editable(agent, data):
             found[agent] = "unreadable"
         elif agent == "claude" and _plugin_enabled(data):
             found[agent] = "plugin"
@@ -137,6 +154,10 @@ def install(root: Path, agents=AGENTS, home: Path | None = None, dry_run: bool =
         data = _load(path)
         if data is None:
             lines.append(f"{agent}: {path} is not valid JSON; left untouched. Fix it, then run this again.")
+            continue
+        if not _editable(agent, data):
+            lines.append(f"{agent}: {path} has a hooks section that is not the expected shape (for example "
+                         '"hooks": null); left untouched. Fix it, then run this again.')
             continue
         if agent == "claude" and _plugin_enabled(data):
             lines.append(f"{agent}: the Plainbrain plugin is enabled and already adds these hooks; nothing to do.")
