@@ -1,5 +1,10 @@
-"""Basic has no team flow report. The brief asks for one, and this answers none."""
+"""Compatibility shim; implementation lives in plainbrain.flow."""
+import importlib
+import sys
+from pathlib import Path
 
+_ROOT = str(Path(__file__).resolve().parents[1])
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
-def latest_flow(root, today, fresh_days=1):
-    return None
+sys.modules[__name__] = importlib.import_module("plainbrain.flow")
