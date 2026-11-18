@@ -266,7 +266,7 @@ def test_plugin_guard_hints_point_to_checkout_script_with_data_root(tmp_path, mo
     })
     assert _deny(denied)
     reason = denied["hookSpecificOutput"]["permissionDecisionReason"]
-    assert checkout_script in reason
+    assert f'"{checkout_script}"' in reason
     assert f'--root "{folder.as_posix()}"' in reason
     assert data_script not in reason
 
@@ -278,6 +278,15 @@ def test_plugin_guard_hints_point_to_checkout_script_with_data_root(tmp_path, mo
     })
     assert asked["hookSpecificOutput"]["permissionDecision"] == "ask"
     reg_reason = asked["hookSpecificOutput"]["permissionDecisionReason"]
-    assert checkout_script in reg_reason
+    assert f'"{checkout_script}"' in reg_reason
     assert f'--root "{folder.as_posix()}"' in reg_reason
     assert data_script not in reg_reason
+
+
+def test_quoted_brain_py_path_is_allowed_and_chained_rejected():
+    allowed = 'python "C:/My Plugins/scripts/brain.py" capture --root "C:/My Brain" --text "Update INBOX.md"'
+    chained = f"{allowed} && echo x > INBOX.md"
+    assert inbox_guard._own_command(allowed)
+    assert _claude("Bash", {"command": allowed}) == {}
+    assert not inbox_guard._own_command(chained)
+    assert _deny(_claude("Bash", {"command": chained}))

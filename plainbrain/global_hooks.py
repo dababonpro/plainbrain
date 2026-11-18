@@ -380,12 +380,17 @@ def add_parser(sub) -> None:
 
 
 def run(args) -> str:
-    root = Path(args.root).expanduser().resolve() if args.root else brain_home.resolve_cli_root()
-    if root is None:
-        raise ValueError("No Plainbrain folder found. Pass --root <folder> or set up Plainbrain first.")
-    root = root.resolve()
+    root = (
+        Path(args.root.strip()).expanduser().resolve()
+        if isinstance(args.root, str) and args.root.strip()
+        else brain_home.resolve_cli_root()
+    )
+    if root is not None:
+        root = root.resolve()
     hook_root = root
     if not brain_home.is_packaged():
+        if root is None:
+            raise ValueError("No Plainbrain folder found. Pass --root <folder> or set up Plainbrain first.")
         if (root / "scripts" / "inbox_guard.py").is_file():
             hook_root = root
         elif (brain_home.as_plugin() or (root / brain_home.MARKER_NAME).is_file()) and (

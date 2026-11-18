@@ -392,3 +392,21 @@ def test_cli_hooks_plugin_data_only_root_uses_checkout_scripts(tmp_path, monkeyp
     assert cursor["hooks"]["preToolUse"][0]["command"] == expected_guard
     assert main(["hooks", "status", "--root", str(data_dir)]) == 0
     assert "cursor: installed" in capsys.readouterr().out
+
+
+def test_cli_hooks_packaged_succeeds_when_resolve_cli_root_is_none(tmp_path, monkeypatch, capsys):
+    temp_root = tmp_path / "sys-temp"
+    temp_root.mkdir()
+    monkeypatch.setenv("PLAINBRAIN_TEMP_ROOT", str(temp_root))
+    monkeypatch.setattr(home, "is_packaged", lambda: True)
+    monkeypatch.setattr(home, "resolve_cli_root", lambda *a, **kw: None)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for name in ("plainbrain-guard", "plainbrain-nudge"):
+        (bin_dir / name).write_text("", encoding="utf-8")
+    monkeypatch.setattr(shutil, "which", lambda name: str(bin_dir / name) if (bin_dir / name).is_file() else None)
+
+    assert main(["hooks", "status"]) == 0
+    out = capsys.readouterr().out
+    assert "claude: missing" in out and "cursor: missing" in out and "antigravity: missing" in out

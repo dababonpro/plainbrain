@@ -60,13 +60,13 @@ else:
     _SCRIPT = (CHECKOUT / "scripts" / "brain.py").as_posix()
     REASON = (
         "Do not edit INBOX.md. Append with: "
-        f'python {_SCRIPT} capture --root "{_HOME}" --repo <repo-name> '
+        f'python "{_SCRIPT}" capture --root "{_HOME}" --repo <repo-name> '
         '--today YYYY-MM-DD --text "one sentence". '
-        f'Remove an accepted triage line with: python {_SCRIPT} inbox-drop --root "{_HOME}" --line "<exact line>"'
+        f'Remove an accepted triage line with: python "{_SCRIPT}" inbox-drop --root "{_HOME}" --line "<exact line>"'
     )
     REGISTRY_REASON = (
         "REGISTRY.md changes go through a command after the owner accepts them: "
-        f'python {_SCRIPT} registry add|update|done|focus|archive --root "{_HOME}" ... '
+        f'python "{_SCRIPT}" registry add|update|done|focus|archive --root "{_HOME}" ... '
         "Edit the file by hand only when no command covers the change and the owner has accepted the exact lines."
     )
 
@@ -210,6 +210,22 @@ def _claude_ask() -> dict:
     }
 
 
+def _match_python_brain(tail: str) -> bool:
+    """Match optional python flags + quoted/unquoted brain.py + subcommand, without shell chaining."""
+    m = re.match(r'^(?:\s+-\S+)*\s+(?:"([^"]*)"|\'([^\']*)\')', tail)
+    if m:
+        script = m.group(1) if m.group(1) is not None else m.group(2)
+        if m.group(1) is not None and ("$(" in script or "`" in script):
+            return False
+        if not re.search(r"(?:^|[/\\])brain\.py$", script, re.IGNORECASE):
+            return False
+        rest = _QUOTED.sub('""', tail[m.end():])
+        return _OWN_COMMAND.match("python brain.py" + rest) is not None and _CHAIN.search(rest) is None
+    rest = _QUOTED.sub('""', tail)
+    bare = "python" + rest
+    return _OWN_COMMAND.match(bare) is not None and _CHAIN.search(bare) is None
+
+
 def _own_command(command: str) -> bool:
     """One brain.py or plainbrain capture/inbox-drop/for-repo/registry call with nothing chained after it."""
     text = re.sub(r"^\s*&\s*", "", command.strip())
@@ -223,8 +239,10 @@ def _own_command(command: str) -> bool:
             return _CHAIN.search(rest) is None
         if "python" not in inner.casefold():
             return False
-        bare = "python" + rest
-        return _OWN_COMMAND.match(bare) is not None and _CHAIN.search(bare) is None
+        return _match_python_brain(text[exe.end():])
+    py = re.match(r"^(?:\S*python\S*|py)(?=\s)", text, re.IGNORECASE)
+    if py:
+        return _match_python_brain(text[py.end():])
     bare = _QUOTED.sub('""', text)
     return _OWN_COMMAND.match(bare) is not None and _CHAIN.search(bare) is None
 
