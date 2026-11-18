@@ -5,6 +5,7 @@ import sys
 
 import pytest
 
+from plainbrain import global_hooks, home
 from scripts import brain, doctor
 
 
@@ -60,3 +61,50 @@ def test_claude_hook_runs_where_only_python3_exists(tmp_path):
     done = subprocess.run([doctor.find_sh(), "-c", doctor.claude_hook_command()], input=doctor._edit(),
                           capture_output=True, text=True, timeout=30, env=env)
     assert done.returncode == 2, done.stderr
+
+
+def test_doctor_reports_stale_and_ephemeral_global_hooks_without_raising(tmp_path, monkeypatch):
+    brain.init(tmp_path, "Work")
+
+    # Case A: stale global hooks -> WARN mentioning "stale" and "hooks install"
+    monkeypatch.setattr(
+        global_hooks,
+        "status",
+        lambda *a, **kw: {"claude": "stale", "cursor": "installed", "antigravity": "installed"},
+    )
+    results = doctor.checks(tmp_path)
+    warnings = [text for status, text in results if status == doctor.WARN]
+    assert any("stale" in text.lower() and "hooks install" in text.lower() for text in warnings), results
+
+    # Case B: ephemeral global hooks -> WARN mentioning pipx / uv tool install, no exception, no FAIL
+    monkeypatch.setattr(
+        global_hooks,
+        "status",
+        lambda *a, **kw: {"claude": "ephemeral", "cursor": "ephemeral", "antigravity": "ephemeral"},
+    )
+    results = doctor.checks(tmp_path)
+    assert all(status != doctor.FAIL for status, _text in results), results
+    warnings = [text for status, text in results if status == doctor.WARN]
+    assert any("pipx" in text.lower() and "uv tool install" in text.lower() for text in warnings), results
+
+
+def test_doctor_checks_data_only_folder_in_packaged_mode(tmp_path, monkeypatch):
+    monkeypatch.setattr(home, "is_packaged", lambda: True)
+    brain.init(tmp_path, "Work")
+
+    seen = []
+    real_blocks = doctor._blocks
+
+    def spy_blocks(argv, env=None, target_root=None):
+        seen.append((argv, env, target_root))
+        return real_blocks(argv, env=env, target_root=target_root)
+
+    monkeypatch.setattr(doctor, "_blocks", spy_blocks)
+    results = doctor.checks(tmp_path)
+    assert all(status != doctor.FAIL for status, _text in results), results
+    assert any(status == doctor.OK and "inbox guard blocks" in text.lower() for status, text in results), results
+    assert seen, "expected doctor to run the inbox guard check"
+    argv, env, target_root = seen[0]
+    assert argv == [sys.executable, "-m", "plainbrain.inbox_guard"]
+    assert env is not None and env.get("BRAIN_ROOT") == str(tmp_path)
+    assert target_root == tmp_path
