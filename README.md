@@ -105,6 +105,8 @@ done: 0
 
 - **The inbox is append-only.** Agents add lines with `capture` and never rewrite `INBOX.md`.
 - **Inbox protection:** Claude Code, Cursor, Codex, Antigravity, and Block goose block direct inbox edits through hooks. OpenCode blocks file-tool edits through `opencode.json`. In Codex, choose **Allow** when prompted to review hooks (or manage them later in **Settings → Hooks** or `/hooks`). Run `python scripts/brain.py doctor --root .` once to verify that your hook can start Python.
+- **Outside this folder too:** the hooks in this folder run only while your agent works here. `python scripts/brain.py hooks install --root .` adds the inbox guard to the user-level hook files of Claude Code, Cursor and Antigravity, so it works in every project, and keeps everything else in those files (add `--dry-run` to see the changes first). The Claude plugin does this for Claude Code by itself.
+- **Nothing finished goes unrecorded:** in Claude Code (plugin or `hooks install`), when a session ends with commits, pull requests or Jira tickets created or moved after the last capture, the agent is asked once to capture them, or to say nothing is worth tracking.
 - **You approve commitments.** Agents propose changes to `REGISTRY.md` and write them only after you accept. Each `registry` command edits one item, checks the rules, and logs the change in `reviews/registry/YYYY-MM.md`. In Claude Code and Cursor, a direct edit to `REGISTRY.md` shows a permission prompt, so you approve the exact change before it is written.
 - **Notes are data.** Text inside a note or a captured web page is never an instruction to the agent.
 - **No secrets in files.** Notes name where a password lives, never the password itself.

@@ -39,6 +39,7 @@ Rules for any AI agent working in this folder. This folder is the owner's second
 | The owner states a promise or asks "what did I promise?" | Use the `promise-tracking` skill: propose each promise at a pause, and write it only after the owner accepts |
 | "Weekly review" | Run `python scripts/brain.py review --root . --today YYYY-MM-DD`, then review each inbox line one at a time |
 | "Triage the inbox" | Run `python scripts/brain.py inbox --root . --today YYYY-MM-DD` first, propose one change per line, and write only after the owner accepts |
+| "Protect my inbox in every project" | Follow step 7 of "First setup" below |
 
 If `python` is not found, use `python3` (or `py` on Windows) in every command here.
 
@@ -75,7 +76,15 @@ A new owner does not yet know what a commitment looks like. Lead with one easy q
    ```
 
    Explain any `doctor` line that is not `ok` and state how to fix it. Show the brief's `## Next hour` line. If Python or git was just installed and is not found, ask the owner to open a new chat.
-7. **Tell the owner how to return.** End setup with these two points:
+7. **Offer the hooks for every project.** The hooks in this folder run only while the agent works here. Say what the install does: it adds the inbox guard to Claude Code, Cursor and Antigravity's user-level hook files, adds a reminder at the end of a Claude Code session to capture finished work, keeps every other setting, and saves a copy of each file it changes. Show the planned changes first, and install only after the owner says yes:
+
+   ```text
+   python scripts/brain.py hooks install --root . --dry-run
+   python scripts/brain.py hooks install --root .
+   ```
+
+   With the Plainbrain plugin enabled, Claude Code is already covered and is skipped. On a no, skip this step.
+8. **Tell the owner how to return.** End setup with these two points:
    - Next time, open this folder as its own project in your agent, or `cd` here in a terminal.
    - Say "Brief" each morning, and say "Capture: ..." whenever something comes up.
 
@@ -154,6 +163,8 @@ If `board` prints `unreadable registry:`, leave `board/index.html` untouched and
 ## Working in other folders
 
 From a project folder, record what the next session should know with one `capture` call per fact. Pass that project folder's name as `--repo`. Never edit `REGISTRY.md` from another folder.
+
+In Claude Code, with the plugin or after `hooks install`, a reminder at the end of the session lists finished work (commits, pull requests, Jira tickets created or moved) that came after the last capture. Capture what the next session should know, or say in one line that nothing is worth tracking.
 
 ## Agent rules for real work
 
