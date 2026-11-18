@@ -325,7 +325,7 @@ def add_parser(sub) -> None:
     actions = registry.add_subparsers(dest="registry_cmd", required=True)
     for name in ("add", "update", "done", "focus", "archive", "show"):
         command = actions.add_parser(name)
-        command.add_argument("--root", required=True)
+        command.add_argument("--root", default=None)
         command.add_argument("--today", default=None)
         command.add_argument("--id", required=name != "focus")
         if name in ("add", "update", "done"):
@@ -338,8 +338,11 @@ def add_parser(sub) -> None:
             command.add_argument("--not-done", action="store_true", help="the owner named this item and confirmed again")
 
 
-def run(args, today: str) -> str:
-    root = Path(args.root)
+def run(args, today: str, root: Path | None = None) -> str:
+    resolved = Path(root) if root is not None else (Path(args.root) if args.root else None)
+    if resolved is None:
+        raise RegistryError("No Plainbrain folder found. Pass --root <folder> or set BRAIN_ROOT.")
+    root = resolved
     action = args.registry_cmd
     if action == "show":
         return show(root, args.id)
