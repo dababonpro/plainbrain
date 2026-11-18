@@ -21,7 +21,7 @@ from scripts.board import write_board
 from scripts.brief import write_brief
 from scripts.capture import CaptureError, capture_line, drop_lines, repo_view
 from scripts.doctor import run_doctor
-from scripts import recent, registry
+from scripts import global_hooks, recent, registry
 from scripts.ingest import log_pairs, write_ingest
 from scripts.model import valid_date
 from scripts.research import write_research
@@ -107,6 +107,7 @@ def main(argv=None) -> int:
         p.add_argument("--today")
     registry.add_parser(sub)
     recent.add_parser(sub)
+    global_hooks.add_parser(sub)
     p = sub.add_parser("capture")
     p.add_argument("--root", required=True)
     p.add_argument("--repo", required=True, help="the folder or project the line comes from")
@@ -138,6 +139,12 @@ def main(argv=None) -> int:
 
     if args.cmd == "recent":
         print(recent.printable(recent.run(args), sys.stdout.encoding))
+        return 0
+    if args.cmd == "hooks":
+        try:
+            print(global_hooks.run(args))
+        except ValueError as exc:
+            parser.error(str(exc))
         return 0
     root = Path(args.root)
     if args.cmd == "init":

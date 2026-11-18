@@ -17,6 +17,8 @@ From the first team install: setup stopped people at a blank question, and did n
 - In Claude Code and Cursor, a direct edit to `REGISTRY.md` shows a permission prompt naming the `registry` command to use, so the rule that you approve commitments no longer depends on the agent remembering it. `registry` commands run without a prompt. Codex does not support a hook asking, so there the rule stays an instruction in `AGENTS.md`. The Codex hook command changed, so Codex asks you to trust it again once
 - `CLAUDE.md` imports `AGENTS.md`, so Claude Code reads the rules even in an older version, or when you add a `CLAUDE.local.md`
 - The agent table lists Pi and Hermes Agent, which read `AGENTS.md`
+- In Claude Code, when a session ends with finished work after the last capture (a commit, a pull request, a Jira ticket created or moved), the agent is asked once to capture it, or to say nothing is worth tracking. The plugin adds this by itself; a cloned folder gets it with `hooks install`
+- `hooks install` adds the inbox guard to the user-level hook files of Claude Code, Cursor and Antigravity, so it works in every project, not only inside your Plainbrain folder. It adds only what is missing, keeps every other setting, saves a copy of each file it changes, and shows the changes first with `--dry-run`. `hooks status` and `doctor` say where it is on. Setup offers it as an optional step
 
 **Changed**
 

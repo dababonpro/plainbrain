@@ -12,6 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from scripts import global_hooks
 from scripts.model import RegistryParseError, parse_registry
 
 HOME = Path(__file__).resolve().parents[1]
@@ -88,6 +89,28 @@ def _python_fix() -> str:
     return "On Ubuntu or Debian: sudo apt install python-is-python3."
 
 
+_AGENT_NAMES = {"claude": "Claude Code", "cursor": "Cursor", "antigravity": "Antigravity"}
+
+
+def _outside(root: Path) -> tuple[str, str]:
+    """Whether the hooks also run outside this folder, from each agent's user-level file."""
+    folder = root if (root / "scripts" / "inbox_guard.py").is_file() else HOME
+    try:
+        states = global_hooks.status(folder.resolve())
+    except Exception:  # a doctor check must not crash on a strange settings file
+        return (NOTE, "Outside this folder: could not read the agents' user-level hook files.")
+    unreadable = [_AGENT_NAMES[a] for a, s in states.items() if s == "unreadable"]
+    if unreadable:
+        return (WARN, "Outside this folder: " + ", ".join(unreadable) + " has a user-level hook file that is not "
+                      "valid JSON, so Plainbrain could not check or add its hooks there.")
+    missing = [_AGENT_NAMES[a] for a, s in states.items() if s == "missing"]
+    if not missing:
+        return (OK, "Outside this folder: the inbox guard (and in Claude Code the capture nudge) runs in every project.")
+    return (NOTE, "Outside this folder: no Plainbrain hooks in the user-level hook file of " + ", ".join(missing)
+                  + ", so in other projects nothing blocks a direct edit to INBOX.md there. To add them: "
+                  "python scripts/brain.py hooks install --root . (add --dry-run to see the changes first).")
+
+
 def checks(root: Path) -> list[tuple[str, str]]:
     found: list[tuple[str, str]] = []
     running = sys.version_info[:2]
@@ -137,6 +160,8 @@ def checks(root: Path) -> list[tuple[str, str]]:
                             "In those three agents nothing blocks an edit to INBOX.md; they follow AGENTS.md only. "
                             "Claude Code has its own check above. To fix it, make `python` start Python 3. "
                             + _python_fix() + " Then run doctor again."))
+
+    found.append(_outside(root))
 
     if importlib.util.find_spec("mcp") is None:
         found.append((NOTE, "The MCP library is not installed. Only the optional MCP server needs it: "
