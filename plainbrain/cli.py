@@ -21,7 +21,7 @@ from plainbrain.board import write_board
 from plainbrain.brief import write_brief
 from plainbrain.capture import CaptureError, capture_line, drop_lines, repo_view
 from plainbrain.doctor import run_doctor
-from plainbrain import global_hooks, home, recent, registry
+from plainbrain import global_hooks, home, plugin_setup, recent, registry
 from plainbrain.ingest import log_pairs, write_ingest
 from plainbrain.model import valid_date
 from plainbrain.research import write_research
@@ -95,6 +95,9 @@ def init(root: Path, areas: str, capacity: str = "Unknown", example: bool = True
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="brain.py")
     sub = parser.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("setup", help="create a Plainbrain folder and record where it is")
+    p.add_argument("--to", required=True, help="the folder to create, for example Documents/my-plainbrain")
+    p.add_argument("--adopt", action="store_true", help="use an existing Plainbrain folder without copying")
     p = sub.add_parser("init", help="create the registry, inbox and context files")
     p.add_argument("--root", default=None)
     p.add_argument("--areas", default="Work, Personal")
@@ -137,6 +140,13 @@ def main(argv=None) -> int:
     p.add_argument("--today")
     args = parser.parse_args(argv)
 
+    if args.cmd == "setup":
+        try:
+            print(plugin_setup.set_up(Path(args.to), adopt=args.adopt, mode="package"))
+        except (OSError, ValueError) as exc:
+            print(f"not set up: {exc}", file=sys.stderr)
+            return 1
+        return 0
     if args.cmd == "recent":
         print(recent.printable(recent.run(args), sys.stdout.encoding))
         return 0

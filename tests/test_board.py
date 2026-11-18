@@ -246,6 +246,6 @@ def test_stale_usage_week_is_labeled(tmp_path):
 
 def test_agents_refresh():
     text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-    assert "python scripts/brain.py board --root . --today YYYY-MM-DD" in text
+    assert "plainbrain board --today YYYY-MM-DD" in text
     assert "Exit code 0: the brief was written and the registry was readable. Run the board command." in text
     assert "unreadable registry:" in text

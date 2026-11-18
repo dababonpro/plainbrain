@@ -13,7 +13,9 @@ Read `~/.plainbrain`. It holds one line: the path of the owner's folder. If the 
 
 ## Then follow the folder's own rules
 
-Open `AGENTS.md` in that folder and follow it. It maps each thing the owner can say ("Capture: ...", "Brief", "Weekly review", "Check Plainbrain", "Update Plainbrain") to the exact command, and it is the authority. Run its commands with the folder as `--root`, from any working directory.
+Open `AGENTS.md` in that folder and follow it. It maps each thing the owner can say ("Capture: ...", "Brief", "Weekly review", "Check Plainbrain", "Update Plainbrain") to the exact command, and it is the authority.
+
+If `plainbrain` is on `PATH`, run its `plainbrain <cmd>` commands with `--root "<folder>"` (or from inside `<folder>`). When `plainbrain` is not on `PATH`, map every `plainbrain <cmd>` in `AGENTS.md` to `python "${CLAUDE_PLUGIN_ROOT}/scripts/brain.py" <cmd> --root "<folder>"` (or `python3` if `python` is missing).
 
 Three things hold wherever you are working:
 

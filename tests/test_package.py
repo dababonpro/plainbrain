@@ -108,7 +108,7 @@ def test_runnable_shims_work_from_unrelated_cwd_with_clean_env(tmp_path):
     assert guard.returncode == 2 and "deny" in guard.stdout, (guard.returncode, guard.stdout, guard.stderr)
 
 
-def test_plugin_setup_folder_runs_init_standalone(tmp_path, monkeypatch):
+def test_data_only_setup_folder_runs_cli_init_without_root(tmp_path, monkeypatch):
     fake_home = tmp_path / "home"
     fake_home.mkdir()
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_home))
@@ -118,12 +118,14 @@ def test_plugin_setup_folder_runs_init_standalone(tmp_path, monkeypatch):
     from plainbrain import plugin_setup
     target = tmp_path / "my-plainbrain"
     plugin_setup.set_up(target)
-    assert (target / "plainbrain" / "cli.py").is_file()
-    assert not (target / "plainbrain" / "plugin_setup.py").exists()
+    assert (target / ".plainbrain-folder").is_file()
+    assert not (target / "plainbrain").exists()
+    assert not (target / "scripts").exists()
 
+    env = {**_clean_env(), "PYTHONPATH": str(ROOT), "HOME": str(fake_home), "USERPROFILE": str(fake_home)}
     done = subprocess.run(
-        [sys.executable, str(target / "scripts" / "brain.py"), "init", "--root", str(target)],
-        cwd=str(tmp_path), env=_clean_env(), capture_output=True, text=True, timeout=30,
+        [sys.executable, "-m", "plainbrain.cli", "init"],
+        cwd=str(target), env=env, capture_output=True, text=True, timeout=30,
     )
     assert done.returncode == 0, done.stderr
     assert (target / "REGISTRY.md").is_file() and (target / "INBOX.md").is_file()
