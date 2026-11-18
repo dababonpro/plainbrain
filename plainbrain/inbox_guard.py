@@ -9,37 +9,22 @@ and Antigravity (PreToolUse with toolCall). Antigravity has no ask decision, so 
 an instruction in AGENTS.md. Codex file edits arrive as apply_patch text, so the patch's file headers are
 read as paths."""
 import json
-import os
 import re
 import sys
 from pathlib import Path
 
+CHECKOUT = Path(__file__).resolve().parents[1]
+if str(CHECKOUT) not in sys.path:
+    sys.path.insert(0, str(CHECKOUT))
 
+from plainbrain.home import as_plugin, is_packaged, resolve_global_root  # noqa: E402
 
-AS_PLUGIN = bool(os.environ.get("CLAUDE_PLUGIN_ROOT"))
-
-
-def _home() -> Path | None:
-    """The folder whose inbox is guarded, or None when there is none to guard.
-
-    In the owner's own folder that is this checkout. Run as a Claude plugin, the script sits in the plugin's
-    install folder, so it guards BRAIN_ROOT when that is set, else the folder that setup recorded. Before setup,
-    or when that folder is gone, a plugin has no inbox, and the guard allows everything."""
-    if not AS_PLUGIN:
-        return Path(__file__).resolve().parents[1]
-    named = os.environ.get("BRAIN_ROOT", "").strip()
-    if not named:
-        try:
-            named = (Path.home() / ".plainbrain").read_text(encoding="utf-8").strip()
-        except OSError:
-            named = ""
-    folder = Path(named).expanduser() if named else None
-    return folder if folder and folder.is_dir() else None
-
-
-HOME = _home()
+AS_PLUGIN = as_plugin()
+PACKAGED = is_packaged()
+GLOBAL_MODE = AS_PLUGIN or PACKAGED
+HOME = resolve_global_root(CHECKOUT)
 # With no folder, this path names a file that never exists, so no edit can match it.
-INBOX = (HOME or Path(__file__).resolve().parents[1] / ".not-set-up") / "INBOX.md"
+INBOX = (HOME or CHECKOUT / ".not-set-up") / "INBOX.md"
 REGISTRY = INBOX.parent / "REGISTRY.md"
 
 WRITE_TOOLS = {
@@ -60,17 +45,29 @@ READ_TOOLS = {"read", "grep", "glob", "semanticsearch", "tabread"}
 SHELL_TOOLS = {"bash", "powershell", "shell", "runterminalcmd", "terminal", "runcommand", "execcommand"}
 
 _HOME = INBOX.parent.as_posix()
-REASON = (
-    "Do not edit INBOX.md. Append with: "
-    f"python {_HOME}/scripts/brain.py capture --root {_HOME} --repo <repo-name> "
-    '--today YYYY-MM-DD --text "one sentence". '
-    f'Remove an accepted triage line with: python {_HOME}/scripts/brain.py inbox-drop --root {_HOME} --line "<exact line>"'
-)
-REGISTRY_REASON = (
-    "REGISTRY.md changes go through a command after the owner accepts them: "
-    f"python {_HOME}/scripts/brain.py registry add|update|done|focus|archive --root {_HOME} ... "
-    "Edit the file by hand only when no command covers the change and the owner has accepted the exact lines."
-)
+if PACKAGED:
+    REASON = (
+        "Do not edit INBOX.md. Append with: "
+        'plainbrain capture --repo <repo-name> --today YYYY-MM-DD --text "one sentence". '
+        'Remove an accepted triage line with: plainbrain inbox-drop --line "<exact line>"'
+    )
+    REGISTRY_REASON = (
+        "REGISTRY.md changes go through a command after the owner accepts them: "
+        "plainbrain registry add|update|done|focus|archive ... "
+        "Edit the file by hand only when no command covers the change and the owner has accepted the exact lines."
+    )
+else:
+    REASON = (
+        "Do not edit INBOX.md. Append with: "
+        f"python {_HOME}/scripts/brain.py capture --root {_HOME} --repo <repo-name> "
+        '--today YYYY-MM-DD --text "one sentence". '
+        f'Remove an accepted triage line with: python {_HOME}/scripts/brain.py inbox-drop --root {_HOME} --line "<exact line>"'
+    )
+    REGISTRY_REASON = (
+        "REGISTRY.md changes go through a command after the owner accepts them: "
+        f"python {_HOME}/scripts/brain.py registry add|update|done|focus|archive --root {_HOME} ... "
+        "Edit the file by hand only when no command covers the change and the owner has accepted the exact lines."
+    )
 
 _PATH_KEYS = {"path", "file_path", "filepath", "target_file", "targetfile", "file", "notebook_path"}
 # File headers in a Codex apply_patch body: Add, Update, Delete, and the target of a move.
@@ -93,7 +90,12 @@ _REDIRECT_REGISTRY = re.compile(r">\s*[\"']?\S*registry\.md", re.IGNORECASE)
 _QUOTED = re.compile(r'"(?:[^"\\]|\\.)*"|\'[^\']*\'')
 _CHAIN = re.compile(r"[;&|<>`\n]|\$\(")
 _OWN_COMMAND = re.compile(
-    r"^\s*(\S*python\S*|py)(\s+-\S+)*\s+\S*brain\.py\s+(capture|inbox-drop|for-repo|registry)(\s|$)",
+    r"^\s*(?:"
+    r"(?:\S*python\S*|py)(?:\s+-\S+)*\s+\S*brain\.py"
+    r"|\"(?:[^\"]*[/\\])?plainbrain(?:\.exe)?\""
+    r"|'(?:[^']*[/\\])?plainbrain(?:\.exe)?'"
+    r"|(?:[^\s\"']*[/\\])?plainbrain(?:\.exe)?"
+    r")\s+(capture|inbox-drop|for-repo|registry)(\s|$)",
     re.IGNORECASE,
 )
 
@@ -129,9 +131,9 @@ def _is_file(path: str, cwd: str, target: str) -> bool:
     if re.match(r"^[a-z]:/", key) or key.startswith("/"):
         return key == target
     if not cwd:
-        # The folder the tool ran in is unknown. In the owner's own folder, assume the worst. As a plugin the
-        # hook runs in every project, where a bare file of this name is most likely someone else's.
-        return not AS_PLUGIN
+        # The folder the tool ran in is unknown. In the owner's own folder, assume the worst. As a plugin or
+        # packaged install the hook runs in every project, where a bare file of this name is most likely someone else's.
+        return not GLOBAL_MODE
     return _norm(f"{cwd.rstrip('/')}/{key}").replace("/./", "/") == target
 
 
@@ -153,9 +155,9 @@ def _mentions(command: str, cwd: str, target: str) -> bool:
         return False
     if target in _norm(lowered):
         return True
-    # A bare INBOX.md counts when the shell runs in Plainbrain, or when the folder is unknown.
+    # A bare INBOX.md counts when the shell runs in Plainbrain, or when the folder is unknown outside global mode.
     if not cwd:
-        return not AS_PLUGIN
+        return not GLOBAL_MODE
     return _norm(cwd).rstrip("/") == ROOT_KEY
 
 
@@ -208,13 +210,20 @@ def _claude_ask() -> dict:
 
 
 def _own_command(command: str) -> bool:
-    """One brain.py capture/inbox-drop/for-repo/registry call with nothing chained after it."""
+    """One brain.py or plainbrain capture/inbox-drop/for-repo/registry call with nothing chained after it."""
     text = re.sub(r"^\s*&\s*", "", command.strip())
-    exe = re.match(r"^\"([^\"]*)\"|^'([^']*)'", text)
+    exe = re.match(r'^"([^"]*)"|^\'([^\']*)\'', text)
     if exe:
-        if "python" not in (exe.group(1) or exe.group(2) or "").casefold():
+        inner = exe.group(1) if exe.group(1) is not None else exe.group(2)
+        if exe.group(0).startswith('"') and ("$(" in inner or "`" in inner):
             return False
-        text = "python" + text[exe.end():]
+        rest = _QUOTED.sub('""', text[exe.end():])
+        if _OWN_COMMAND.match(exe.group(0) + rest) is not None:
+            return _CHAIN.search(rest) is None
+        if "python" not in inner.casefold():
+            return False
+        bare = "python" + rest
+        return _OWN_COMMAND.match(bare) is not None and _CHAIN.search(bare) is None
     bare = _QUOTED.sub('""', text)
     return _OWN_COMMAND.match(bare) is not None and _CHAIN.search(bare) is None
 

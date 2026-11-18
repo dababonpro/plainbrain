@@ -113,3 +113,25 @@ def test_cli_never_fails():
                              capture_output=True, text=True)
         assert run.returncode == 0
         json.loads(run.stdout)
+
+
+def test_plainbrain_cli_capture_clears_pending_work(tmp_path, brain):
+    commands = (
+        'plainbrain capture --repo app --text "committed x"',
+        '"/venv/bin/plainbrain" capture --repo app --text "committed x"',
+        '"C:/Users/My Name/.venv/Scripts/plainbrain.exe" capture --repo app --text "committed x"',
+        '/usr/local/bin/plainbrain capture --repo app --text "committed x"',
+    )
+    for idx, capture_cmd in enumerate(commands):
+        path = _transcript(tmp_path, [_shell('git commit -m "x"'), _shell(capture_cmd)], name=f"pb-{idx}.jsonl")
+        total, pending = capture_nudge.scan(path, "/home/me/work/app")
+        assert (total, pending) == (1, []), capture_cmd
+        assert capture_nudge.decide(_payload(path, session=f"pb-{idx}"), brain=brain) == {}, capture_cmd
+
+
+def test_packaged_nudge_reason_suggests_plainbrain_capture(brain, monkeypatch):
+    monkeypatch.setattr(capture_nudge, "is_packaged", lambda: True)
+    text = capture_nudge.reason(["git commit in api"], "/home/me/work/website", brain, "2026-11-18")
+    assert 'plainbrain capture --repo "website" --today 2026-11-18 --text "<what happened, and what is left>"' in text
+    assert "scripts/brain.py" not in text
+    assert "--root" not in text

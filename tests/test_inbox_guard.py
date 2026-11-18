@@ -1,4 +1,8 @@
 """The inbox guard protects this folder's inbox wherever the folder is installed."""
+import importlib.util
+from pathlib import Path
+
+from plainbrain import home
 from scripts import inbox_guard
 from scripts.inbox_guard import decide
 
@@ -108,3 +112,127 @@ def test_antigravity_other_tool_names():
     assert _deny(_antigravity("edit_file", {"file_path": INBOX}))
     assert _deny(_antigravity("run_shell_command", {"command": "echo x > INBOX.md"}))
     assert not _deny(_antigravity("edit_file", {"file_path": HERE + "/knowledge/note.md"}))
+
+
+def test_packaged_cli_capture_and_registry_commands_are_allowed():
+    allowed = (
+        'plainbrain capture --repo app --today 2026-11-18 --text "Update INBOX.md note"',
+        'plainbrain inbox-drop --line "x"',
+        'plainbrain registry update --id a --set "next=y"',
+        '"/home/me/.venv/bin/plainbrain" capture --repo app --text "Update INBOX.md"',
+        '"C:/Users/My Name/.venv/Scripts/plainbrain.exe" capture --repo app --text "Update INBOX.md"',
+        '/usr/local/bin/plainbrain capture --repo app --text "Update INBOX.md"',
+        "'/home/me/.venv/bin/plainbrain' capture --repo app --text \"fixed > INBOX.md\"",
+        'plainbrain capture --repo app --text "fixed echo x > INBOX.md"',
+        'plainbrain registry update --id a --set "next=fix > REGISTRY.md"',
+    )
+    for command in allowed:
+        assert inbox_guard._own_command(command), command
+        assert _claude("Bash", {"command": command}) == {}, command
+
+    denied = (
+        'plainbrain capture --repo app --text "ok" && echo x > INBOX.md',
+        '"/home/me/.venv/bin/plainbrain" capture --repo app --text "ok" && echo x > INBOX.md',
+        '"/home/me/bin/myplainbrain" capture --repo app --text "ok" && echo x > INBOX.md',
+    )
+    for command in denied:
+        assert not inbox_guard._own_command(command), command
+        assert _deny(_claude("Bash", {"command": command})), command
+
+
+def _load_fresh_inbox_guard():
+    spec = importlib.util.spec_from_file_location("_test_inbox_guard_packaged", inbox_guard.__file__)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_packaged_guard_uses_pointer_ignores_cwd_and_bare_filename(tmp_path, monkeypatch):
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    folder = tmp_path / "my-brain"
+    folder.mkdir()
+    (fake_home / ".plainbrain").write_text(folder.as_posix() + "\n", encoding="utf-8")
+
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_home))
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("USERPROFILE", str(fake_home))
+    monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
+    monkeypatch.delenv("BRAIN_ROOT", raising=False)
+    monkeypatch.setattr(home, "is_packaged", lambda: True)
+
+    mod = _load_fresh_inbox_guard()
+
+    # Full path to recorded folder's INBOX.md is denied with packaged CLI hint.
+    denied = mod.decide({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(folder),
+        "tool_input": {"file_path": str(folder / "INBOX.md"), "content": "x"},
+    })
+    assert _deny(denied)
+    reason = denied["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "plainbrain capture" in reason and "plainbrain inbox-drop" in reason
+    assert "brain.py" not in reason
+
+    # Full path to recorded folder's REGISTRY.md asks with packaged CLI hint.
+    asked = mod.decide({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(folder),
+        "tool_input": {"file_path": str(folder / "REGISTRY.md"), "content": "x"},
+    })
+    assert asked["hookSpecificOutput"]["permissionDecision"] == "ask"
+    reg_reason = asked["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "plainbrain registry" in reg_reason and "brain.py" not in reg_reason
+
+    # Bare INBOX.md / REGISTRY.md with no cwd must NOT be guessed in packaged mode.
+    assert not _deny(mod.decide({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "tool_input": {"file_path": "INBOX.md", "content": "x"},
+    }))
+    assert not _deny(mod.decide({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "echo x > INBOX.md"},
+    }))
+    assert mod.decide({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "tool_input": {"file_path": "REGISTRY.md", "content": "x"},
+    }) == {}
+
+    # Unrelated CWD's INBOX.md is allowed (both bare and full path).
+    unrelated = tmp_path / "other-project"
+    unrelated.mkdir()
+    assert not _deny(mod.decide({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(unrelated),
+        "tool_input": {"file_path": "INBOX.md", "content": "x"},
+    }))
+    assert not _deny(mod.decide({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(unrelated),
+        "tool_input": {"file_path": str(unrelated / "INBOX.md"), "content": "x"},
+    }))
+
+    # BRAIN_ROOT overrides ~/.plainbrain in packaged mode.
+    override = tmp_path / "override-brain"
+    override.mkdir()
+    monkeypatch.setenv("BRAIN_ROOT", str(override))
+    mod_override = _load_fresh_inbox_guard()
+    assert _deny(mod_override.decide({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(override),
+        "tool_input": {"file_path": str(override / "INBOX.md"), "content": "x"},
+    }))
+    assert not _deny(mod_override.decide({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(folder),
+        "tool_input": {"file_path": str(folder / "INBOX.md"), "content": "x"},
+    }))
