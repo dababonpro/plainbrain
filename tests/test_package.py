@@ -148,3 +148,28 @@ def test_pyproject_declares_core_stdlib_mcp_extra_scripts_and_existing_assets():
     assert force_include
     for src in force_include:
         assert (ROOT / src).exists(), f"missing force-include source: {src}"
+
+
+def test_sdist_names_its_contents_and_covers_every_wheel_source():
+    import tomllib
+
+    targets = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["hatch"]["build"]["targets"]
+    include = targets.get("sdist", {}).get("include", [])
+    # Without a list, a source archive packs every file .gitignore does not exclude, untracked ones too.
+    assert include and all(entry.startswith("/") for entry in include)
+    assert "/plainbrain" in include and "/README.md" in include
+    for src in targets["wheel"]["force-include"]:
+        assert f"/{src}" in include, f"wheel source missing from the sdist: {src}"
+    for kept_out in ("/docs", "/tests", "/scripts", "/.claude", "/.claude-plugin"):
+        assert kept_out not in include
+
+
+@pytest.mark.skipif(subprocess.run(["git", "--version"], capture_output=True).returncode != 0, reason="no git")
+def test_build_output_rules_do_not_hide_an_owners_folders():
+    def ignored(path: str) -> bool:
+        done = subprocess.run(["git", "check-ignore", "-q", "--no-index", path], cwd=str(ROOT), capture_output=True)
+        return done.returncode == 0
+
+    assert ignored("dist/plainbrain.whl") and ignored("build/lib/x.py")
+    for path in ("knowledge/build/note.md", "knowledge/dist/note.md", "projects/dist/plan.md"):
+        assert not ignored(path), f"{path} would drop out of the owner's backup"

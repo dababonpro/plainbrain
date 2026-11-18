@@ -30,6 +30,24 @@ plainbrain-nudge = "plainbrain.capture_nudge:main"
 [tool.hatch.version]
 path = "plainbrain/__init__.py"
 
+# A source archive takes every file .gitignore does not exclude, tracked or not, so name what goes in.
+# It must hold the package, every force-include source below, and the files the metadata names.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/plainbrain",
+    "/AGENTS.md",
+    "/CLAUDE.md",
+    "/LICENSE",
+    "/LICENSE-docs",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/templates",
+    "/views",
+    "/knowledge",
+    "/.claude/skills",
+    "/.agents/skills",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["plainbrain"]
 

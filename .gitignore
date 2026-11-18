@@ -3,6 +3,7 @@ __pycache__/
 .obsidian/
 .env
 *.lock
-dist/
-build/
-*.egg-info/
+# Build output, at the top of the folder only: a notes folder named dist or build must stay tracked.
+/dist/
+/build/
+/*.egg-info/
