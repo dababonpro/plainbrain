@@ -57,15 +57,16 @@ if PACKAGED:
         "Edit the file by hand only when no command covers the change and the owner has accepted the exact lines."
     )
 else:
+    _SCRIPT = (CHECKOUT / "scripts" / "brain.py").as_posix()
     REASON = (
         "Do not edit INBOX.md. Append with: "
-        f"python {_HOME}/scripts/brain.py capture --root {_HOME} --repo <repo-name> "
+        f'python {_SCRIPT} capture --root "{_HOME}" --repo <repo-name> '
         '--today YYYY-MM-DD --text "one sentence". '
-        f'Remove an accepted triage line with: python {_HOME}/scripts/brain.py inbox-drop --root {_HOME} --line "<exact line>"'
+        f'Remove an accepted triage line with: python {_SCRIPT} inbox-drop --root "{_HOME}" --line "<exact line>"'
     )
     REGISTRY_REASON = (
         "REGISTRY.md changes go through a command after the owner accepts them: "
-        f"python {_HOME}/scripts/brain.py registry add|update|done|focus|archive --root {_HOME} ... "
+        f'python {_SCRIPT} registry add|update|done|focus|archive --root "{_HOME}" ... '
         "Edit the file by hand only when no command covers the change and the owner has accepted the exact lines."
     )
 

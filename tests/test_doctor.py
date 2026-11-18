@@ -108,3 +108,23 @@ def test_doctor_checks_data_only_folder_in_packaged_mode(tmp_path, monkeypatch):
     assert argv == [sys.executable, "-m", "plainbrain.inbox_guard"]
     assert env is not None and env.get("BRAIN_ROOT") == str(tmp_path)
     assert target_root == tmp_path
+
+
+def test_doctor_does_not_report_ephemeral_path_binaries_as_ok(tmp_path, monkeypatch):
+    monkeypatch.setattr(home, "is_packaged", lambda: True)
+    brain.init(tmp_path, "Work")
+
+    temp_root = tmp_path / "sys-temp"
+    uv_bin = temp_root / "uv" / "cache" / "bin"
+    uv_bin.mkdir(parents=True)
+    for name in ("plainbrain-guard", "plainbrain-mcp"):
+        (uv_bin / name).write_text("", encoding="utf-8")
+    monkeypatch.setenv("PLAINBRAIN_TEMP_ROOT", str(temp_root))
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: str(uv_bin / name) if (uv_bin / name).is_file() else None)
+    monkeypatch.setattr(global_hooks, "status", lambda *a, **kw: {"claude": "ephemeral", "cursor": "ephemeral", "antigravity": "ephemeral"})
+
+    results = doctor.checks(tmp_path)
+    assert not any(status == doctor.OK and "plainbrain-guard is on PATH" in text for status, text in results), results
+    assert not any(status == doctor.OK and "plainbrain-mcp is on PATH" in text for status, text in results), results
+    assert any(status == doctor.WARN and "plainbrain-guard is not on PATH" in text for status, text in results), results
+    assert any(status == doctor.NOTE and "plainbrain-mcp is not on PATH" in text for status, text in results), results

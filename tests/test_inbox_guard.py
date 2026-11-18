@@ -139,6 +139,8 @@ def test_packaged_cli_capture_and_registry_commands_are_allowed():
         assert not inbox_guard._own_command(command), command
         assert _deny(_claude("Bash", {"command": command})), command
 
+    assert not inbox_guard._own_command('"/home/me/bin/myplainbrain" capture --repo app --text "Update INBOX.md"')
+
 
 def _load_fresh_inbox_guard():
     spec = importlib.util.spec_from_file_location("_test_inbox_guard_packaged", inbox_guard.__file__)
@@ -236,3 +238,46 @@ def test_packaged_guard_uses_pointer_ignores_cwd_and_bare_filename(tmp_path, mon
         "cwd": str(folder),
         "tool_input": {"file_path": str(folder / "INBOX.md"), "content": "x"},
     }))
+
+
+def test_plugin_guard_hints_point_to_checkout_script_with_data_root(tmp_path, monkeypatch):
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    folder = tmp_path / "my-brain"
+    folder.mkdir()
+    (fake_home / ".plainbrain").write_text(folder.as_posix() + "\n", encoding="utf-8")
+
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_home))
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("USERPROFILE", str(fake_home))
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(inbox_guard.CHECKOUT))
+    monkeypatch.delenv("BRAIN_ROOT", raising=False)
+    monkeypatch.setattr(home, "is_packaged", lambda: False)
+
+    mod = _load_fresh_inbox_guard()
+    checkout_script = (mod.CHECKOUT / "scripts" / "brain.py").as_posix()
+    data_script = (folder / "scripts" / "brain.py").as_posix()
+
+    denied = mod.decide({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(folder),
+        "tool_input": {"file_path": str(folder / "INBOX.md"), "content": "x"},
+    })
+    assert _deny(denied)
+    reason = denied["hookSpecificOutput"]["permissionDecisionReason"]
+    assert checkout_script in reason
+    assert f'--root "{folder.as_posix()}"' in reason
+    assert data_script not in reason
+
+    asked = mod.decide({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(folder),
+        "tool_input": {"file_path": str(folder / "REGISTRY.md"), "content": "x"},
+    })
+    assert asked["hookSpecificOutput"]["permissionDecision"] == "ask"
+    reg_reason = asked["hookSpecificOutput"]["permissionDecisionReason"]
+    assert checkout_script in reg_reason
+    assert f'--root "{folder.as_posix()}"' in reg_reason
+    assert data_script not in reg_reason

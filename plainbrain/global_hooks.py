@@ -2,6 +2,8 @@
 
     python scripts/brain.py hooks status --root .
     python scripts/brain.py hooks install --root . [--agent claude|cursor|antigravity] [--dry-run]
+    plainbrain hooks status
+    plainbrain hooks install [--agent claude|cursor|antigravity] [--dry-run]
 
 The hooks in `.claude/`, `.cursor/` and `.agents/` inside this folder only run while the agent works in this
 folder. From a project folder, an agent could still edit INBOX.md by its full path, and the capture nudge never
@@ -13,8 +15,9 @@ runs. This command adds the same hooks to each agent's user-level file:
 | Cursor | `~/.cursor/hooks.json` | inbox guard before file tools and before shell commands that name INBOX.md |
 | Antigravity | `~/.gemini/config/hooks.json` | inbox guard before every tool call |
 
-It points each hook at this folder's own scripts, run with the Python that ran this command, so the hooks keep
-working when the agent runs elsewhere. It adds only what is missing, keeps every other setting and hook, saves a
+From a checkout or plugin, it points each hook at the checkout's own scripts, run with the Python that ran this
+command. When installed as a package, it points each hook at `plainbrain-guard` and `plainbrain-nudge` (on `PATH` or
+beside the running interpreter). In both cases the hooks keep working when the agent runs elsewhere. It adds only what
 copy of each file it changes beside it (`<file>.bak-YYYYMMDD-HHMMSS`), and leaves a file it cannot read as JSON
 untouched, as is a file whose hooks section has an unexpected shape (such as `"hooks": null`). With the Plainbrain plugin enabled in Claude Code, Claude Code is skipped because the plugin already
 does this. Nothing else is written, and nothing leaves the machine."""
@@ -29,6 +32,7 @@ from pathlib import Path
 
 from plainbrain import home as brain_home
 
+CHECKOUT = Path(__file__).resolve().parents[1]
 AGENTS = ("claude", "cursor", "antigravity")
 _EPHEMERAL_PAIRS = {("uv", "cache"), (".cache", "uv"), ("caches", "uv")}
 _TOKEN_RE = re.compile(r'"([^"]*)"|\'([^\']*)\'|(\S+)')
@@ -377,11 +381,19 @@ def add_parser(sub) -> None:
 
 def run(args) -> str:
     root = Path(args.root).expanduser().resolve() if args.root else brain_home.resolve_cli_root()
-    if root is not None:
-        root = root.resolve()
+    if root is None:
+        raise ValueError("No Plainbrain folder found. Pass --root <folder> or set up Plainbrain first.")
+    root = root.resolve()
+    hook_root = root
     if not brain_home.is_packaged():
-        if root is None or not (root / "scripts" / "inbox_guard.py").is_file():
+        if (root / "scripts" / "inbox_guard.py").is_file():
+            hook_root = root
+        elif (brain_home.as_plugin() or (root / brain_home.MARKER_NAME).is_file()) and (
+            CHECKOUT / "scripts" / "inbox_guard.py"
+        ).is_file():
+            hook_root = CHECKOUT
+        else:
             raise ValueError(f"{root} has no scripts/inbox_guard.py; pass the Plainbrain folder as --root")
     if args.action == "status":
-        return "\n".join(f"{agent}: {state}" for agent, state in status(root).items())
-    return "\n".join(install(root, tuple(args.agent or AGENTS), dry_run=args.dry_run))
+        return "\n".join(f"{agent}: {state}" for agent, state in status(hook_root).items())
+    return "\n".join(install(hook_root, tuple(args.agent or AGENTS), dry_run=args.dry_run))

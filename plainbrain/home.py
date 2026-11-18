@@ -41,8 +41,8 @@ def is_plainbrain_cwd(cwd: Path) -> bool:
 
 def resolve_cli_root(explicit: str | None = None, cwd: Path | None = None) -> Path | None:
     """Resolve the Plainbrain folder for CLI commands: --root, BRAIN_ROOT, a Plainbrain cwd, or ~/.plainbrain."""
-    if explicit:
-        return Path(explicit).expanduser()
+    if explicit and explicit.strip():
+        return Path(explicit.strip()).expanduser()
     named = os.environ.get("BRAIN_ROOT", "").strip()
     if named:
         return Path(named).expanduser()
@@ -53,7 +53,7 @@ def resolve_cli_root(explicit: str | None = None, cwd: Path | None = None) -> Pa
 
 
 def resolve_global_root(checkout: Path | None = None) -> Path | None:
-    """Resolve the Plainbrain folder for global callers (MCP, hooks): never reads cwd when packaged or a plugin."""
+    """Resolve the Plainbrain folder for global callers (MCP, hooks): never reads cwd."""
     named = os.environ.get("BRAIN_ROOT", "").strip()
     if named:
         return Path(named).expanduser()

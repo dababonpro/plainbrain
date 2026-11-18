@@ -60,10 +60,15 @@ def test_global_root_never_reads_cwd_when_packaged_or_plugin(tmp_path, fake_home
 
     monkeypatch.setattr(home, "is_packaged", lambda: True)
     assert home.resolve_global_root(tmp_path / "site") is None
+    monkeypatch.setattr(home, "is_packaged", lambda: False)
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(tmp_path / "plugin"))
+    assert home.resolve_global_root(tmp_path / "site") is None
 
     recorded = tmp_path / "recorded"
     recorded.mkdir()
     (fake_home / ".plainbrain").write_text(recorded.as_posix() + "\n", encoding="utf-8")
+    assert home.resolve_global_root(tmp_path / "site") == recorded
+    monkeypatch.setattr(home, "is_packaged", lambda: True)
     assert home.resolve_global_root(tmp_path / "site") == recorded
 
     env_dir = tmp_path / "from-env"

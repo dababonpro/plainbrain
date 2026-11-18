@@ -163,13 +163,15 @@ def checks(root: Path) -> list[tuple[str, str]]:
         else:
             found.append((FAIL, "The inbox guard did not block a direct edit to INBOX.md."))
 
-        if shutil.which("plainbrain-guard"):
+        guard_bin = shutil.which("plainbrain-guard")
+        if guard_bin and not global_hooks.is_ephemeral_path(Path(guard_bin)):
             found.append((OK, "plainbrain-guard is on PATH."))
         else:
             found.append((WARN, "plainbrain-guard is not on PATH. Install Plainbrain persistently with pipx or "
                                 "uv tool install so agent hooks can find it."))
 
-        if shutil.which("plainbrain-mcp"):
+        mcp_bin = shutil.which("plainbrain-mcp")
+        if mcp_bin and not global_hooks.is_ephemeral_path(Path(mcp_bin)):
             found.append((OK, "plainbrain-mcp is on PATH."))
         else:
             found.append((NOTE, "plainbrain-mcp is not on PATH. Only the optional MCP server needs it."))

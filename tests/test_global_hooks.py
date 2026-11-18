@@ -367,3 +367,28 @@ def test_replaces_stale_packaged_and_recorded_folder_hooks(tmp_path, monkeypatch
     assert cursor["hooks"]["preToolUse"][0]["command"] == "plainbrain-guard"
     assert cursor["hooks"]["beforeShellExecution"][0]["command"] == "plainbrain-guard"
     assert global_hooks.status(None, home=fake_home, temp_root=temp_root)["cursor"] == "installed"
+
+
+def test_cli_hooks_plugin_data_only_root_uses_checkout_scripts(tmp_path, monkeypatch, capsys):
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    data_dir = tmp_path / "data-only"
+    data_dir.mkdir()
+    (data_dir / home.MARKER_NAME).write_text("plainbrain\n", encoding="utf-8")
+
+    monkeypatch.setattr(home, "is_packaged", lambda: False)
+    monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(ROOT))
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+
+    assert main(["hooks", "status", "--root", str(data_dir)]) == 0
+    out = capsys.readouterr().out
+    assert "claude: missing" in out and "cursor: missing" in out and "antigravity: missing" in out
+
+    assert main(["hooks", "install", "--root", str(data_dir), "--agent", "cursor"]) == 0
+    install_out = capsys.readouterr().out
+    assert "cursor: added" in install_out
+    cursor = _read(global_hooks.files(fake_home)["cursor"])
+    expected_guard = global_hooks.resolve_hook_command("guard", ROOT)
+    assert cursor["hooks"]["preToolUse"][0]["command"] == expected_guard
+    assert main(["hooks", "status", "--root", str(data_dir)]) == 0
+    assert "cursor: installed" in capsys.readouterr().out

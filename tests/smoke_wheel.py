@@ -200,8 +200,8 @@ def _verify_core_wheel(
     ephemeral_env = {**env, "PLAINBRAIN_TEMP_ROOT": str(tmp_root)}
     eph_proc = _run([plainbrain_bin, "doctor", "--today", "2026-11-18"], cwd=data_dir, env=ephemeral_env)
     eph_out = eph_proc.stdout.lower()
-    if "warn" not in eph_out or ("pipx" not in eph_out and "uv tool install" not in eph_out):
-        raise AssertionError(f"Expected ephemeral doctor warning mentioning pipx/uv tool install, got:\n{eph_proc.stdout}")
+    if "warn" not in eph_out or "temporary" not in eph_out or ("pipx" not in eph_out and "uv tool install" not in eph_out):
+        raise AssertionError(f"Expected ephemeral doctor warning mentioning temporary + pipx/uv tool install, got:\n{eph_proc.stdout}")
 
     assets_check = (
         "from pathlib import Path; "
