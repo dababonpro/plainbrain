@@ -3,3 +3,6 @@ __pycache__/
 .obsidian/
 .env
 *.lock
+dist/
+build/
+*.egg-info/

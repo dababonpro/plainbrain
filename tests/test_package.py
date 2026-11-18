@@ -127,3 +127,24 @@ def test_plugin_setup_folder_runs_init_standalone(tmp_path, monkeypatch):
     )
     assert done.returncode == 0, done.stderr
     assert (target / "REGISTRY.md").is_file() and (target / "INBOX.md").is_file()
+
+
+def test_pyproject_declares_core_stdlib_mcp_extra_scripts_and_existing_assets():
+    import tomllib
+
+    data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    proj = data["project"]
+    assert proj["name"] == "plainbrain"
+    assert proj["requires-python"] == ">=3.11"
+    assert proj.get("dependencies", []) == []
+    assert proj["optional-dependencies"]["mcp"] == ["mcp>=1.30,<2"]
+    assert proj["scripts"] == {
+        "plainbrain": "plainbrain.cli:main",
+        "plainbrain-mcp": "plainbrain.mcp_server:main",
+        "plainbrain-guard": "plainbrain.inbox_guard:main",
+        "plainbrain-nudge": "plainbrain.capture_nudge:main",
+    }
+    force_include = data["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
+    assert force_include
+    for src in force_include:
+        assert (ROOT / src).exists(), f"missing force-include source: {src}"

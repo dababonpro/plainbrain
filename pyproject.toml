@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "plainbrain"
+dynamic = ["version"]
+description = "A second brain you run with plain Markdown files, a few Python scripts, and any AI agent."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "DababonPro IT Solutions" }]
+dependencies = []
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.30,<2"]
+dev = ["pytest"]
+
+[project.urls]
+Homepage = "https://dababon.pro/plainbrain/"
+Repository = "https://github.com/dababonpro/plainbrain"
+Issues = "https://github.com/dababonpro/plainbrain/issues"
+
+[project.scripts]
+plainbrain = "plainbrain.cli:main"
+plainbrain-mcp = "plainbrain.mcp_server:main"
+plainbrain-guard = "plainbrain.inbox_guard:main"
+plainbrain-nudge = "plainbrain.capture_nudge:main"
+
+[tool.hatch.version]
+path = "plainbrain/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["plainbrain"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"AGENTS.md" = "plainbrain/_assets/AGENTS.md"
+"CLAUDE.md" = "plainbrain/_assets/CLAUDE.md"
+"LICENSE" = "plainbrain/_assets/LICENSE"
+"LICENSE-docs" = "plainbrain/_assets/LICENSE-docs"
+"templates" = "plainbrain/_assets/templates"
+"views" = "plainbrain/_assets/views"
+"knowledge" = "plainbrain/_assets/knowledge"
+".claude/skills" = "plainbrain/_assets/.claude/skills"
+".agents/skills" = "plainbrain/_assets/.agents/skills"
