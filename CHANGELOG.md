@@ -2,6 +2,29 @@
 
 To get a newer version, say "Update Plainbrain" to your agent. An update never touches your commitments, inbox or notes.
 
+## 1.3.0, 19 November 2026
+
+Plainbrain is now an installable Python package (`plainbrain`) that keeps code separate from your data folder across every agent, while keeping the Claude Code plugin self-contained.
+
+**New**
+
+- Installable Python package (`pyproject.toml` with `hatchling`) with pure-stdlib core, optional `plainbrain[mcp]` extra, and four console entry points: `plainbrain`, `plainbrain-mcp`, `plainbrain-guard`, and `plainbrain-nudge`
+- `plainbrain setup --to <folder> [--adopt]` creates a data-only folder (no `scripts/` copy, `.plainbrain-folder` marker, and a `.gitignore` that ignores `board/` while keeping `reviews/` trackable) and records it in `~/.plainbrain`
+- `--root` is now optional across CLI subcommands, resolving `--root`, `BRAIN_ROOT`, a marked working directory (`.plainbrain-folder` or legacy `scripts/brain.py`), or `~/.plainbrain`; global hooks and the MCP server never read the working directory
+- `.claude-plugin/marketplace.json` (`dababonpro-plainbrain`) for one-command plugin installation alongside `dababonpro/human-approved-agents`
+- 3-OS (`windows-latest`, `ubuntu-latest`, `macos-latest`) wheel build and isolated-venv smoke tests in CI
+
+**Changed**
+
+- `hooks install` uses `plainbrain-guard` and `plainbrain-nudge` when packaged (or the virtualenv's absolute binary path), refuses ephemeral `uvx` cache runs, and replaces stale Plainbrain hook entries in place while leaving unrelated hooks and other tools' `inbox_guard.py` scripts untouched
+- `AGENTS.md` commands lead with `plainbrain <cmd>` (with a git-clone fallback note for `python scripts/brain.py`) so data-only folders carry runnable instructions
+- Claude Code plugin setup creates data-only folders without copying `scripts/` or writing a duplicate project-level `.claude/settings.json`
+
+**Fixed**
+
+- `inbox_guard` and `capture_nudge` recognize `plainbrain` CLI commands (bare or path-qualified) and point Option 1C plugin hints at `${CLAUDE_PLUGIN_ROOT}/scripts/brain.py`
+- `doctor` supports packaged/data-only folders and reports `stale` or `ephemeral` hooks as warnings without raising
+
 ## 1.2.0, unreleased
 
 From the first team install: setup stopped people at a blank question, and did not say where to go next.

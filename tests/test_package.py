@@ -41,10 +41,20 @@ def _clean_env():
 
 
 def test_package_version_and_checkout_assets_dir():
+    import json
+    import re
     import plainbrain
     from plainbrain.assets import assets_dir
 
-    assert plainbrain.__version__ == "1.3.0.dev0"
+    plugin_manifest = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    marketplace = json.loads((ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
+    assert plainbrain.__version__ == plugin_manifest["version"]
+    assert marketplace["plugins"][0]["version"] == plainbrain.__version__
+    first_heading = next(
+        line for line in (ROOT / "CHANGELOG.md").read_text(encoding="utf-8").splitlines()
+        if line.startswith("## ")
+    )
+    assert re.match(rf"^## {re.escape(plainbrain.__version__)},", first_heading), first_heading
     found = assets_dir()
     assert found == ROOT
     assert (found / "AGENTS.md").is_file()
