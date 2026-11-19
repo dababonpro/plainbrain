@@ -1,5 +1,6 @@
 {
   "name": "dababonpro-plainbrain",
+  "description": "Plainbrain plugin by DababonPro IT Solutions: a local commitment and work-loop system in plain Markdown for AI agents.",
   "owner": {
     "name": "DababonPro",
     "url": "https://dababon.pro"
@@ -8,7 +9,7 @@
     {
       "name": "plainbrain",
       "source": "./",
-      "description": "A second brain in plain Markdown files on your own computer: one list of commitments, an inbox that only grows, notes worth finding again, and a daily brief. Your agent proposes; you approve.",
+      "description": "A local commitment and work-loop system in plain Markdown: one commitment list your agent proposes to and you approve, an append-only inbox guarded by hooks, deterministic daily briefs, searchable notes, and a local MCP server.",
       "version": "1.3.0"
     }
   ]

@@ -1,38 +1,67 @@
 # Plainbrain
 
-A second brain you run with plain Markdown files, a few Python scripts, and any AI agent. It gives you one commitment list, an inbox, searchable notes, a daily brief, and a weekly review.
+Plainbrain is a local commitment and work-loop system in plain Markdown for people running AI agents across projects. It gives you one commitment list (`REGISTRY.md`) your agent proposes to and you approve, an append-only inbox guarded by hooks, deterministic daily briefs, searchable notes, and a local MCP server—a second brain that tracks what you owe, not just what you read.
 
-Free from DababonPro IT Solutions. It works on its own. [Obsidian](https://obsidian.md) is optional, and any agent that reads `AGENTS.md` can run it, such as Claude Code, Codex, or Cursor.
+Free from DababonPro IT Solutions. It works on its own. [Obsidian](https://obsidian.md) is optional, and any agent that reads `AGENTS.md` can run it, such as Claude Code, Codex, Cursor, or Antigravity.
 
-**Its sibling:** the [Human-Approved Agent Playbook](https://github.com/dababonpro/human-approved-agents) covers agents that change code and data. This repository covers what you know and what you owe.
+**Its sibling:** the [Human-Approved Agent Playbook](https://github.com/dababonpro/human-approved-agents) covers agents that change code and data. Plainbrain covers what you know and what you owe.
 
 ## Install
 
-Requires Python 3.11 or later, plus Git. Obsidian is optional.
+Requires Python 3.11 or later. Obsidian is optional.
 
-Paste this into Claude Code, Codex, Cursor, or Antigravity:
+### Option 1: Install as a package (every agent)
+
+Install the package once so Plainbrain holds the code and your folder holds only your data. You can put your data folder in its own private git repo without blocking future Plainbrain updates.
 
 ```text
-Install Plainbrain for me. Follow these steps in order:
-1. Check that Python 3.11+ and git are installed. If either is missing, tell me how to install it, remind me to open a new chat afterwards, and stop.
-2. Suggest a new folder path (for example, Documents/my-plainbrain) and wait for my confirmation. Never overwrite an existing folder.
-3. After I confirm, clone https://github.com/dababonpro/plainbrain into that folder.
-4. Read AGENTS.md in the new folder and follow "First setup": install requirements.txt, create my files, and show me today's brief.
+pipx install "plainbrain[mcp] @ git+https://github.com/dababonpro/plainbrain.git@v1.3.0"
 ```
 
-The agent checks your tools first and asks once where to put Plainbrain. Next, it asks one open question about your work and drafts your first commitments for you to review. It can also offer a read-only scan of your recent local work. That scan runs only if you say yes, stays on your machine, and writes nothing without your approval.
+*(With `uv`: `uv tool install "plainbrain[mcp] @ git+https://github.com/dababonpro/plainbrain.git@v1.3.0"`. Omit `[mcp]` if you do not need the cross-project MCP server.)*
+
+Next, create your data folder and run first setup:
+
+```text
+plainbrain setup --to ~/Documents/my-plainbrain
+```
+
+Or paste this into Claude Code, Codex, Cursor, or Antigravity:
+
+```text
+Set up Plainbrain for me. Follow these steps in order:
+1. Check that Python 3.11+ and `plainbrain` are installed (if `plainbrain` is missing, tell me to install it with pipx or uv tool install and stop).
+2. Suggest a new folder path (for example, Documents/my-plainbrain) and wait for my confirmation. Never overwrite an existing folder.
+3. After I confirm, run `plainbrain setup --to "<folder>"`.
+4. Read AGENTS.md in the new folder and follow "First setup": ask me about my work, create my files, offer global hooks, and show me today's brief.
+```
 
 **After setup, open your Plainbrain folder as its own project or session in your agent.** In the Claude desktop app, start a new session and choose the folder. In a terminal, `cd` into the folder and start the agent. Then say "Brief".
 
-If you had to install Python or Git first, restart your agent or open a new chat so it can find the new binary.
+### Option 2: Install as a Claude Code plugin
 
-**Want a private, backed-up copy instead?** Click **Use this template** on GitHub, choose **Private**, and give your agent your repository URL instead of `dababonpro/plainbrain`. Keep your copy private so your commitments and notes are never public.
-
-<details>
-<summary>Prefer the terminal?</summary>
+In Claude Code (2.1.275 or later), install the self-contained plugin in one step:
 
 ```text
-git clone https://github.com/<you>/<your-copy> my-plainbrain
+/plugin install plainbrain --marketplace dababonpro/plainbrain
+```
+
+Then say `"Set up Plainbrain"`. The agent asks where to put your data folder, creates it from the plugin's own template without copying scripts into your folder, and runs the same first setup as above.
+
+What the plugin adds, and everything it runs:
+
+- **Skills:** `setup` and `plainbrain`, plus the note, retrieval, and review skills this template ships.
+- **Hooks:** before a file edit or a shell command, it runs `scripts/inbox_guard.py` to keep your inbox append-only; when a session ends with uncaptured commits, PRs, or Jira work, `scripts/capture_nudge.py` reminds you once to capture it.
+- **A local MCP server:** `scripts/mcp_server.py`, over stdio, so an agent in any project can search your notes, read your commitments, and add one line to your inbox. Adding that line is its only write.
+- **One pointer file:** setup writes your folder's path to `~/.plainbrain`, so the hook and the server find it from any project. Delete that file to disconnect the plugin; your folder is untouched.
+
+The plugin uses no network, sends nothing anywhere, and stores no keys. Tested on Windows in Claude Code. The MCP server starts with `python`; on macOS and Linux, where the command is often `python3`, the skills and hooks work and the server may not start unless `python` is available.
+
+<details>
+<summary>Option 3: Run from a git clone (for contributors or without pipx/uv)</summary>
+
+```text
+git clone https://github.com/dababonpro/plainbrain.git my-plainbrain
 cd my-plainbrain
 python -m pip install -r requirements.txt
 python scripts/brain.py init --root .
@@ -41,26 +70,11 @@ python scripts/brain.py brief --root . --today YYYY-MM-DD
 python scripts/brain.py doctor --root . --today YYYY-MM-DD
 ```
 
-On macOS and Linux, use `python3` if `python` is not found. If pip refuses to install on a system-protected Python, skip that line. Only the optional MCP server needs it.
+On macOS and Linux, use `python3` if `python` is not found. If pip refuses to install on a system-protected Python, skip `pip install`—only the optional MCP server needs it.
 
 </details>
 
 `init` creates `REGISTRY.md`, `INBOX.md`, and `CONTEXT.md` with one example commitment. Pass `--no-example` to start empty, and use `--areas`, `--capacity`, and `--about` to set your context. If the files already exist, `init` changes nothing. The brief is written to `reviews/daily/YYYY-MM-DD.md`.
-
-## Install as a Claude plugin
-
-Plainbrain can also be installed as a plugin in Claude Code. The plugin holds the code; your commitments, inbox and notes stay in a folder you own. After installing, say "Set up Plainbrain". The agent asks where to put your folder, creates it from the plugin's own copy of this template, and runs the same first setup as above.
-
-What the plugin adds, and everything it runs:
-
-- **Skills:** `setup` and `plainbrain`, plus the note, retrieval and review skills this template ships.
-- **A hook:** before a file edit or a shell command, it runs `scripts/inbox_guard.py` and denies a direct edit to your inbox file. It reads the tool call and nothing else.
-- **A local MCP server:** `scripts/mcp_server.py`, over stdio, so an agent in any project can search your notes, read your commitments and add one line to your inbox. Adding that line is its only write.
-- **One file outside your folder:** setup writes the path of your folder to `.plainbrain` in your home folder, so the hook and the server can find it. Delete that file to disconnect the plugin from your folder; your folder is untouched.
-
-The plugin uses no network, sends nothing anywhere, and stores no keys. It needs Python 3.11 or newer on your machine, and the MCP server needs the `mcp` package, which setup installs with your say-so. The hook is a shell script, so on Windows it needs Git for Windows.
-
-Tested on Windows in Claude Code. The server starts with the `python` command; on macOS and Linux, where the command is often `python3`, the skills and the hook work and the server may not start.
 
 ## What a brief looks like
 
@@ -104,32 +118,28 @@ done: 0
 ## What keeps it safe
 
 - **The inbox is append-only.** Agents add lines with `capture` and never rewrite `INBOX.md`.
-- **Inbox protection:** Claude Code, Cursor, Codex, Antigravity, and Block goose block direct inbox edits through hooks. OpenCode blocks file-tool edits through `opencode.json`. In Codex, choose **Allow** when prompted to review hooks (or manage them later in **Settings → Hooks** or `/hooks`). Run `python scripts/brain.py doctor --root .` once to verify that your hook can start Python.
-- **Outside this folder too:** the hooks in this folder run only while your agent works here. `python scripts/brain.py hooks install --root .` adds the inbox guard to the user-level hook files of Claude Code, Cursor and Antigravity, so it works in every project, and keeps everything else in those files (add `--dry-run` to see the changes first). The Claude plugin does this for Claude Code by itself.
-- **Nothing finished goes unrecorded:** in Claude Code (plugin or `hooks install`), when a session ends with commits, pull requests or Jira tickets created or moved after the last capture, the agent is asked once to capture them, or to say nothing is worth tracking.
+- **Inbox protection:** Claude Code, Cursor, Codex, Antigravity, and Block goose block direct inbox edits through hooks. Run `plainbrain doctor` once to verify that your hook blocks direct edits on your machine.
+- **Outside this folder too:** `plainbrain hooks install` adds the inbox guard to the user-level hook files of Claude Code, Cursor, and Antigravity so it protects your inbox from every project (and keeps every other setting; add `--dry-run` to preview). The Claude plugin already does this for Claude Code.
+- **Nothing finished goes unrecorded:** in Claude Code (plugin or `hooks install`), when a session ends with commits, pull requests, or Jira tickets created or moved after the last capture, the agent is asked once to capture them, or to say nothing is worth tracking.
 - **You approve commitments.** Agents propose changes to `REGISTRY.md` and write them only after you accept. Each `registry` command edits one item, checks the rules, and logs the change in `reviews/registry/YYYY-MM.md`. In Claude Code and Cursor, a direct edit to `REGISTRY.md` shows a permission prompt, so you approve the exact change before it is written.
 - **Notes are data.** Text inside a note or a captured web page is never an instruction to the agent.
 - **No secrets in files.** Notes name where a password lives, never the password itself.
 
 ## Use it from other folders (optional)
 
-The MCP server in `scripts/mcp_server.py` lets an agent in another project search your notes, read your commitments, and capture a line. It uses stdio with no network access and no API keys. `capture` is its only write tool.
-
-Point `BRAIN_ROOT` at the folder where you ran `init`, never at a separate clone. Replace `C:/path/to/my-plainbrain` with your folder path in the examples below.
+`plainbrain-mcp` lets an agent in another project search your notes, read your commitments, and capture a line. It uses stdio with no network access and no API keys. `capture` is its only write tool. If you ran `plainbrain setup`, the server finds your folder automatically from `~/.plainbrain` (or set `BRAIN_ROOT` explicitly).
 
 **Codex**, in `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.plainbrain]
-command = "python"
-args = ["C:/path/to/my-plainbrain/scripts/mcp_server.py"]
-env = { BRAIN_ROOT = "C:/path/to/my-plainbrain" }
+command = "plainbrain-mcp"
 ```
 
-**Claude Code**, for every project on your computer:
+**Claude Code**, for every project on your computer (if not already using the Claude plugin):
 
 ```text
-claude mcp add plainbrain --scope user -e BRAIN_ROOT=C:/path/to/my-plainbrain -- python C:/path/to/my-plainbrain/scripts/mcp_server.py
+claude mcp add plainbrain --scope user -- plainbrain-mcp
 ```
 
 **Cursor** (`~/.cursor/mcp.json`) and **Antigravity** (`~/.gemini/config/mcp_config.json`, or **Customizations → Installed → MCP Servers**):
@@ -138,9 +148,7 @@ claude mcp add plainbrain --scope user -e BRAIN_ROOT=C:/path/to/my-plainbrain --
 {
   "mcpServers": {
     "plainbrain": {
-      "command": "python",
-      "args": ["C:/path/to/my-plainbrain/scripts/mcp_server.py"],
-      "env": { "BRAIN_ROOT": "C:/path/to/my-plainbrain" }
+      "command": "plainbrain-mcp"
     }
   }
 }
@@ -154,8 +162,7 @@ claude mcp add plainbrain --scope user -e BRAIN_ROOT=C:/path/to/my-plainbrain --
   "mcp": {
     "plainbrain": {
       "type": "local",
-      "command": ["python", "C:/path/to/my-plainbrain/scripts/mcp_server.py"],
-      "environment": { "BRAIN_ROOT": "C:/path/to/my-plainbrain" }
+      "command": ["plainbrain-mcp"]
     }
   }
 }
@@ -168,33 +175,29 @@ extensions:
   plainbrain:
     name: Plainbrain
     type: stdio
-    cmd: python
-    args: ["C:/path/to/my-plainbrain/scripts/mcp_server.py"]
-    envs: { BRAIN_ROOT: "C:/path/to/my-plainbrain" }
+    cmd: plainbrain-mcp
     enabled: true
 ```
 
-Use the Python environment where you installed `requirements.txt`. To verify the setup, ask your agent to search for `PARA`.
+To verify the setup, ask your agent to search for `PARA`. *(If you are running from a git clone without the package installed, use `"command": "python"` with `args: ["C:/path/to/my-plainbrain/scripts/mcp_server.py"]` and `env: { "BRAIN_ROOT": "C:/path/to/my-plainbrain" }`.)*
 
 ## Daily use
 
 | You want to | Say to your agent | Or run |
 |---|---|---|
-| Note something on your mind | *"Capture: call the dentist on Monday"* | `capture --root . --repo <folder> --text "..."` |
-| See what to do today | *"Brief"* | `brief --root .`, then `board --root .` |
-| Add or change a commitment | *"Add a commitment: renew my passport"* | `registry add`, `registry update`, `registry done` |
-| Keep a promise you made in passing | *"I'll send Sam the figures by Friday"* | The agent proposes a commitment at the next pause and runs `registry add` after you accept |
-| Find something | *"What do I know about pricing?"* | `search --root . --query "words"` |
+| Note something on your mind | *"Capture: call the dentist on Monday"* | `plainbrain capture --repo <folder> --text "..."` |
+| See what to do today | *"Brief"* | `plainbrain brief`, then `plainbrain board` |
+| Add or change a commitment | *"Add a commitment: renew my passport"* | `plainbrain registry add`, `update`, `done` |
+| Keep a promise you made in passing | *"I'll send Sam the figures by Friday"* | The agent proposes a commitment at the next pause and runs `plainbrain registry add` after you accept |
+| Find something | *"What do I know about pricing?"* | `plainbrain search --query "words"` |
 | Keep something worth finding again | *"Add a note on our pricing decision"* | Skill: `note-creation` |
-| Review the week | *"Weekly review"* | `review --root .`, then triage the inbox |
-| Check your notes for gaps | *"Review my notes"* | `research --root . --source knowledge` |
-| See what you worked on recently | *"Look at my recent work and suggest what to track"* | `recent --path <folder>`, `recent --claude-sessions` |
-| Check the setup | *"Check Plainbrain"* | `doctor --root .` |
+| Review the week | *"Weekly review"* | `plainbrain review`, then triage the inbox |
+| Check your notes for gaps | *"Review my notes"* | `plainbrain research --source knowledge` |
+| See what you worked on recently | *"Look at my recent work and suggest what to track"* | `plainbrain recent --path <folder>`, `--claude-sessions` |
+| Check the setup | *"Check Plainbrain"* | `plainbrain doctor` |
 | Get the latest version | *"Update Plainbrain"* | Follow `## Updating Plainbrain` in `AGENTS.md` |
 
-Updating never touches your commitments, inbox, notes, or generated reviews because git does not track them. If you modified a tracked file such as an example note, the update stops first. A repository created with **Use this template** has separate git history and cannot pull directly.
-
-Every command takes `--root .`. Agents follow `AGENTS.md` and use the skills in `.claude/skills/` and `.agents/skills/`.
+Upgrading the `plainbrain` package or plugin never touches your commitments, inbox, notes, or generated reviews. Agents follow `AGENTS.md` and use the skills in `.claude/skills/` and `.agents/skills/`.
 
 ## Three fields on every note
 
@@ -210,7 +213,7 @@ Every command takes `--root .`. Agents follow `AGENTS.md` and use the skills in 
 
 | Task | Without Obsidian | With Obsidian |
 |---|---|---|
-| Find notes | `search`, or ask your agent | Same, plus Obsidian search |
+| Find notes | `plainbrain search`, or ask your agent | Same, plus Obsidian search |
 | Browse notes by PARA | Ask your agent, or search by field | Open `views/Plainbrain.base` |
 | Rename a note | Update links with your agent | Obsidian updates links automatically |
 
@@ -223,16 +226,16 @@ Agents work with Plainbrain in one of two modes:
 - **Enforced:** a hook blocks direct edits to `INBOX.md`, so the inbox stays append-only even if the agent forgets.
 - **Instructed:** the agent reads `AGENTS.md` and follows its rules, without a hook blocking direct edits.
 
-Hooks require a working Python command. Claude Code's hook tries `python` and falls back to `python3`. Cursor, Codex, and Antigravity hooks call `python` directly. Run `python scripts/brain.py doctor --root .` to see whether hooks are active on your machine.
+Run `plainbrain doctor` to see whether hooks are active on your machine.
 
 | Agent | Mode | Files used | Status |
 |---|---|---|---|
-| Claude Code | Enforced | `.claude/settings.json`, `.claude/skills/`, `CLAUDE.md` (imports `AGENTS.md`) | Tested on Windows, November 2026 |
+| Claude Code | Enforced | `.claude/settings.json` (or plugin), `.claude/skills/`, `CLAUDE.md` (imports `AGENTS.md`) | Tested on Windows, November 2026 |
 | Codex | Enforced after allowing the hook | `.codex/hooks.json`, `.agents/skills/` | Tested on Windows, November 2026 |
 | Cursor | Enforced | `.cursor/hooks.json` | Tested on Windows, November 2026 |
 | Antigravity | Enforced | `.agents/hooks.json`, `.agents/skills/` | Automated tests pass, manual test pending |
 | Block goose | Enforced | `.agents/plugins/plainbrain/hooks/hooks.json`, `.agents/skills/`, `AGENTS.md` | Automated tests pass, manual test pending |
-| OpenCode | Enforced for file tools, instructed for shell | `opencode.json`, `.agents/skills/`, `.claude/skills/`, `AGENTS.md` | Configured from docs, manual test pending |
+| OpenCode | Instructed (or enforced via `opencode.json`) | `.agents/skills/`, `.claude/skills/`, `AGENTS.md` | Configured from docs, manual test pending |
 | Pi | Instructed | `AGENTS.md`, `.agents/skills/` | Configured from docs, manual test pending |
 | Hermes Agent | Instructed | `AGENTS.md` | Configured from docs, manual test pending |
 | Amp, Jules, Zed | Instructed | `AGENTS.md` | Reads `AGENTS.md` automatically per vendor docs |
@@ -244,7 +247,7 @@ Zed reads only the first instruction file it finds. `AGENTS.md` comes before `CL
 ## Good to know
 
 - **Compatibility:** automated tests run on Windows, Linux, and macOS for every change.
-- **Backups:** git ignores your personal files so updates never overwrite them. Keep your Plainbrain folder in a backed-up or synced drive.
+- **Backups:** put your Plainbrain **data folder** in a private git repository or synced drive (`REGISTRY.md`, `INBOX.md`, `CONTEXT.md`, `knowledge/`, and `reviews/` are all trackable; `.gitignore` ignores `board/`, `.obsidian/`, `.env`, and `*.lock`). Do not use GitHub's **Use this template** on this code repository for a private copy, because a template copy disconnects you from package/git updates.
 - **You decide:** the daily brief recommends a next step and never edits your commitments.
 
 ## Licence

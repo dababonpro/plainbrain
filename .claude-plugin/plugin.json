@@ -2,7 +2,7 @@
   "name": "plainbrain",
   "displayName": "Plainbrain",
   "version": "1.3.0",
-  "description": "A second brain in plain Markdown files on your own computer: one list of commitments, an inbox that only grows, notes worth finding again, and a daily brief. Your agent proposes; you approve.",
+  "description": "A local commitment and work-loop system in plain Markdown: one commitment list your agent proposes to and you approve, an append-only inbox guarded by hooks, deterministic daily briefs, searchable notes, and a local MCP server.",
   "author": {
     "name": "DababonPro",
     "url": "https://dababon.pro"
@@ -10,7 +10,7 @@
   "homepage": "https://dababon.pro/plainbrain/",
   "repository": "https://github.com/dababonpro/plainbrain",
   "license": "MIT",
-  "keywords": ["second-brain", "notes", "commitments", "daily-brief", "markdown", "local-first"],
+  "keywords": ["commitments", "work-loop", "second-brain", "notes", "daily-brief", "markdown", "local-first"],
   "documentationUrl": "https://dababon.pro/plainbrain/",
   "supportUrl": "https://github.com/dababonpro/plainbrain/issues",
   "privacyPolicyUrl": "https://dababon.pro/privacy/",
