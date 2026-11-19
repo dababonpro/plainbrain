@@ -31,7 +31,7 @@ def test_plugin_skills_have_front_matter_and_the_template_skills_are_listed_once
         text = (ROOT / "plugin-skills" / name / "SKILL.md").read_text(encoding="utf-8")
         assert text.startswith("---\nname: " + name + "\n") and "\ndescription: " in text.split("---")[1]
     # Plugin-only skills name the plugin's own folder, so they must not be copied into the owner's folder.
-    assert "plugin-skills" not in plugin_setup.COPY and ".claude" in plugin_setup.COPY
+    assert "plugin-skills" not in plugin_setup.DATA_COPY and ".claude/skills" in plugin_setup.SKILL_DIRS
 
 
 def test_hook_runs_a_script_inside_the_plugin_with_no_other_variable():
@@ -57,12 +57,110 @@ def fake_home(tmp_path, monkeypatch):
 def test_setup_copies_the_template_and_records_the_folder(tmp_path, fake_home):
     target = tmp_path / "Documents" / "my-plainbrain"
     message = plugin_setup.set_up(target)
-    assert (target / "AGENTS.md").is_file() and (target / "scripts" / "brain.py").is_file()
-    assert (target / ".claude" / "skills").is_dir() and (target / "templates").is_dir()
+    assert (target / "AGENTS.md").is_file() and (target / "CLAUDE.md").is_file()
+    assert (target / ".plainbrain-folder").is_file()
+    assert (target / ".claude" / "skills").is_dir() and (target / ".agents" / "skills").is_dir()
+    assert (target / "templates").is_dir() and (target / "views" / "Plainbrain.base").is_file()
+    assert (target / ".gemini" / "settings.json").is_file()
+    assert not (target / "scripts").exists() and not (target / "plainbrain").exists()
+    assert not (target / "requirements.txt").exists() and not (target / ".claude" / "settings.json").exists()
     assert not (target / "plugin-skills").exists() and not (target / ".claude-plugin").exists()
-    assert not (target / "tests").exists() and not (target / "scripts" / "plugin_setup.py").exists()
+    assert not (target / "tests").exists()
+    gitignore = (target / ".gitignore").read_text(encoding="utf-8")
+    assert "board/" in gitignore and "reviews/" not in gitignore
     assert (fake_home / ".plainbrain").read_text(encoding="utf-8").strip() == target.resolve().as_posix()
     assert "Recorded in" in message and home.recorded_folder() == Path(target.resolve().as_posix())
+
+
+def test_package_setup_writes_resolved_guard_hooks_and_skips_hooks_on_ephemeral(tmp_path, fake_home, monkeypatch, capsys):
+    from plainbrain import cli, global_hooks
+
+    target = tmp_path / "pkg-brain"
+    monkeypatch.setattr(global_hooks, "resolve_hook_command", lambda kind, root=None, temp_root=None: "/venv/bin/plainbrain-guard")
+    assert cli.main(["setup", "--to", str(target)]) == 0
+    out = capsys.readouterr().out
+    assert (target / ".plainbrain-folder").is_file()
+    assert "/venv/bin/plainbrain-guard" in (target / ".claude" / "settings.json").read_text(encoding="utf-8")
+    assert "/venv/bin/plainbrain-guard" in (target / ".cursor" / "hooks.json").read_text(encoding="utf-8")
+    assert "/venv/bin/plainbrain-guard --codex" in (target / ".codex" / "hooks.json").read_text(encoding="utf-8")
+    assert "/venv/bin/plainbrain-guard" in (target / ".agents" / "hooks.json").read_text(encoding="utf-8")
+    assert (fake_home / ".plainbrain").read_text(encoding="utf-8").strip() == target.resolve().as_posix()
+
+    target2 = tmp_path / "uvx-brain"
+    def _ephemeral(kind, root=None, temp_root=None):
+        raise ValueError("Plainbrain is running from a temporary cache (such as uvx). Install persistently with pipx or uv tool install.")
+    monkeypatch.setattr(global_hooks, "resolve_hook_command", _ephemeral)
+    assert cli.main(["setup", "--to", str(target2)]) == 0
+    out2 = capsys.readouterr().out
+    assert "pipx" in out2
+    assert (target2 / ".plainbrain-folder").is_file() and (target2 / "AGENTS.md").is_file()
+    assert (fake_home / ".plainbrain").read_text(encoding="utf-8").strip() == target2.resolve().as_posix()
+    assert not (target2 / ".claude" / "settings.json").exists()
+    assert not (target2 / ".cursor").exists()
+    assert not (target2 / ".codex").exists()
+    assert not (target2 / ".agents" / "hooks.json").exists()
+
+
+def test_setup_reports_old_and_new_folder_when_pointer_changes(tmp_path, fake_home):
+    first = tmp_path / "first-brain"
+    second = tmp_path / "second-brain"
+    plugin_setup.set_up(first)
+    message = plugin_setup.set_up(second)
+    assert first.resolve().as_posix() in message
+    assert second.resolve().as_posix() in message
+
+
+def test_adopt_accepts_legacy_and_data_only_folders_without_writing_any_file(tmp_path, fake_home):
+    legacy = tmp_path / "legacy"
+    (legacy / "scripts").mkdir(parents=True)
+    (legacy / "AGENTS.md").write_text("legacy agents", encoding="utf-8")
+    (legacy / "scripts" / "brain.py").write_text("# legacy", encoding="utf-8")
+
+    data_only = tmp_path / "data-only"
+    data_only.mkdir()
+    (data_only / "AGENTS.md").write_text("data agents", encoding="utf-8")
+    (data_only / ".plainbrain-folder").write_text("", encoding="utf-8")
+
+    minimal = tmp_path / "minimal"
+    minimal.mkdir()
+    (minimal / "AGENTS.md").write_text("minimal agents", encoding="utf-8")
+    (minimal / "REGISTRY.md").write_text("# Registry\n", encoding="utf-8")
+    (minimal / "INBOX.md").write_text("# Inbox\n", encoding="utf-8")
+
+    for folder, expected in (
+        (legacy, {"AGENTS.md": "legacy agents", "scripts/brain.py": "# legacy"}),
+        (data_only, {"AGENTS.md": "data agents", ".plainbrain-folder": ""}),
+        (minimal, {"AGENTS.md": "minimal agents", "REGISTRY.md": "# Registry\n", "INBOX.md": "# Inbox\n"}),
+    ):
+        msg = plugin_setup.set_up(folder, adopt=True)
+        assert "kept the files already in" in msg
+        assert (fake_home / ".plainbrain").read_text(encoding="utf-8").strip() == folder.resolve().as_posix()
+        actual = {p.relative_to(folder).as_posix(): p.read_text(encoding="utf-8")
+                  for p in folder.rglob("*") if p.is_file()}
+        assert actual == expected
+
+
+def test_data_folder_agents_md_needs_no_missing_files(tmp_path, fake_home):
+    target = tmp_path / "brain"
+    plugin_setup.set_up(target)
+    text = (target / "AGENTS.md").read_text(encoding="utf-8")
+    for cmd in ("plainbrain brief", "plainbrain board", "plainbrain capture", "plainbrain doctor"):
+        assert cmd in text
+    assert "python scripts/brain.py" in text
+    first_setup = text.split("## First setup", 1)[1].split("## Updating Plainbrain", 1)[0]
+    assert "plainbrain init" in first_setup
+    assert "requirements.txt" not in first_setup
+    assert "scripts/brain.py" not in first_setup
+
+
+def test_marketplace_manifest_has_unique_name_and_valid_plugin_entry():
+    marketplace = json.loads((ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
+    assert marketplace["name"] == "dababonpro-plainbrain"
+    assert isinstance(marketplace["owner"], dict) and marketplace["owner"].get("name")
+    plugins = marketplace["plugins"]
+    assert len(plugins) == 1
+    assert plugins[0]["name"] == "plainbrain"
+    assert plugins[0]["source"] == "./"
 
 
 def test_setup_never_overwrites(tmp_path, fake_home):

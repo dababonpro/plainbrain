@@ -18,9 +18,9 @@ Plainbrain keeps the owner's commitments, inbox and notes in a folder they own. 
    python "${CLAUDE_PLUGIN_ROOT}/scripts/plugin_setup.py" --to "<the folder they confirmed>"
    ```
 
-   It copies the template into a new or empty folder and records the path in `~/.plainbrain`. It refuses a folder that already holds files. If it prints `not set up:`, read the reason to the owner and ask what they want; never delete or move their files to make it pass.
-5. **Run Plainbrain's own first setup in that folder.** Open the folder's `AGENTS.md`, find "First setup", and follow its numbered steps from inside the folder: install the requirements, ask the owner about themselves and their work, write only what they accept, run the check, and show the first brief.
-6. **Say how to come back.** Tell the owner the folder's path, that they can open it in any agent app or say "Brief" or "Capture: ..." here, and that the Plainbrain tools work from now on in any project. If the tools were not available in this session, the `mcp` package was missing when the session opened, and they start with the next session.
+   It copies the data-only template into a new or empty folder (no `scripts/` or `requirements.txt` is placed there) and records the path in `~/.plainbrain`. It refuses a folder that already holds files. If it prints `not set up:`, read the reason to the owner and ask what they want; never delete or move their files to make it pass.
+5. **Run Plainbrain's own first setup in that folder.** Open the folder's `AGENTS.md`, find "First setup", and follow its numbered steps using `python "${CLAUDE_PLUGIN_ROOT}/scripts/brain.py" <cmd> --root "<folder>"` (for `recent`, `init`, `registry`, `doctor`, `brief`, `board`, and `hooks install`; or `plainbrain <cmd> --root "<folder>"` if `plainbrain` is on `PATH`): ask the owner about themselves and their work, write only what they accept, run the check, and show the first brief.
+6. **Check optional MCP dependency and say how to come back.** Check whether `mcp` is installed by running `python -c "import mcp"`. Tell the owner the folder's path, that they can open it in any agent app or say "Brief" or "Capture: ..." here, and that the Plainbrain tools work from now on in any project. If `import mcp` failed, tell them the optional MCP server needs `mcp>=1.30,<2` (`pip install "mcp>=1.30,<2"`) and that the tools start with the next session after installing it.
 
 ## Rules
 

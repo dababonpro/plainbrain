@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -57,9 +58,25 @@ def _venv_paths(venv_dir: Path) -> tuple[Path, Path, str]:
     return bin_dir, bin_dir / f"python{ext}", ext
 
 
-def _run(cmd: list[str], *, cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
-    proc = subprocess.run(cmd, cwd=str(cwd), env=env, capture_output=True, text=True)
-    if proc.returncode != 0:
+def _run(
+    cmd: list[str],
+    *,
+    cwd: Path,
+    env: dict[str, str],
+    timeout: int = 60,
+    input_text: str | None = None,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    proc = subprocess.run(
+        cmd,
+        cwd=str(cwd),
+        env=env,
+        input=input_text,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+    if check and proc.returncode != 0:
         raise RuntimeError(
             f"Command failed (exit {proc.returncode}): {cmd}\n"
             f"STDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
@@ -71,12 +88,22 @@ def _create_venv(venv_dir: Path) -> None:
     venv.EnvBuilder(with_pip=True, symlinks=os.name != "nt").create(str(venv_dir))
 
 
-def _verify_core_wheel(wheel: Path, tmp_root: Path, env: dict[str, str]) -> None:
+def _verify_core_wheel(
+    wheel: Path,
+    tmp_root: Path,
+    env: dict[str, str],
+    fake_home: Path,
+) -> tuple[Path, Path]:
     venv_dir = tmp_root / "venv-core"
     _create_venv(venv_dir)
     bin_dir, venv_py, ext = _venv_paths(venv_dir)
 
-    _run([str(venv_py), "-m", "pip", "install", "--quiet", "--no-deps", str(wheel)], cwd=tmp_root, env=env)
+    _run(
+        [str(venv_py), "-m", "pip", "install", "--quiet", "--no-deps", str(wheel)],
+        cwd=tmp_root,
+        env=env,
+        timeout=300,
+    )
 
     for name in CONSOLE_SCRIPTS:
         exe = bin_dir / f"{name}{ext}"
@@ -84,11 +111,36 @@ def _verify_core_wheel(wheel: Path, tmp_root: Path, env: dict[str, str]) -> None
             raise AssertionError(f"Expected console script missing: {exe}")
 
     plainbrain_bin = str(bin_dir / f"plainbrain{ext}")
+    guard_bin = str(bin_dir / f"plainbrain-guard{ext}")
     data_dir = tmp_root / "data"
-    data_dir.mkdir()
+    decoy_dir = tmp_root / "decoy"
+    decoy_dir.mkdir()
+    (decoy_dir / "REGISTRY.md").write_text("# Registry\n\nfocus:\n", encoding="utf-8")
+    (decoy_dir / "INBOX.md").write_text("# Inbox\n\n## Brain Dump\n", encoding="utf-8")
 
     _run([plainbrain_bin, "--help"], cwd=tmp_root, env=env)
-    _run([plainbrain_bin, "init", "--root", str(data_dir)], cwd=tmp_root, env=env)
+    _run([plainbrain_bin, "setup", "--to", str(data_dir)], cwd=tmp_root, env=env)
+
+    if not (data_dir / ".plainbrain-folder").is_file():
+        raise AssertionError(f"setup did not create .plainbrain-folder in {data_dir}")
+    gitignore_text = (data_dir / ".gitignore").read_text(encoding="utf-8")
+    if "board/" not in gitignore_text or "reviews/" in gitignore_text:
+        raise AssertionError(f"Unexpected .gitignore contents in {data_dir}: {gitignore_text!r}")
+    if (data_dir / "scripts").exists() or (data_dir / "plainbrain").exists():
+        raise AssertionError(f"setup copied code into data folder {data_dir}")
+    claude_settings = data_dir / ".claude" / "settings.json"
+    if not claude_settings.is_file():
+        raise AssertionError(f"setup did not create {claude_settings}")
+    if "plainbrain-guard" not in claude_settings.read_text(encoding="utf-8"):
+        raise AssertionError(f"Claude settings missing resolved guard command: {claude_settings}")
+    home_pointer = fake_home / ".plainbrain"
+    if not home_pointer.is_file():
+        raise AssertionError(f"setup did not write pointer file {home_pointer}")
+    recorded = Path(home_pointer.read_text(encoding="utf-8").strip()).resolve()
+    if recorded != data_dir.resolve():
+        raise AssertionError(f"Pointer {home_pointer} recorded {recorded}, expected {data_dir.resolve()}")
+
+    _run([plainbrain_bin, "init"], cwd=data_dir, env=env)
     for fname in ("REGISTRY.md", "INBOX.md", "CONTEXT.md"):
         if not (data_dir / fname).is_file():
             raise AssertionError(f"init did not create {fname} in {data_dir}")
@@ -97,8 +149,6 @@ def _verify_core_wheel(wheel: Path, tmp_root: Path, env: dict[str, str]) -> None
         [
             plainbrain_bin,
             "capture",
-            "--root",
-            str(data_dir),
             "--repo",
             "demo",
             "--today",
@@ -106,18 +156,52 @@ def _verify_core_wheel(wheel: Path, tmp_root: Path, env: dict[str, str]) -> None
             "--text",
             "Wheel smoke check",
         ],
-        cwd=tmp_root,
+        cwd=decoy_dir,
         env=env,
     )
+    if "Wheel smoke check" not in (data_dir / "INBOX.md").read_text(encoding="utf-8"):
+        raise AssertionError("capture did not write to data/INBOX.md")
+    if "Wheel smoke check" in (decoy_dir / "INBOX.md").read_text(encoding="utf-8"):
+        raise AssertionError("capture leaked into decoy/INBOX.md")
 
-    _run(
-        [plainbrain_bin, "brief", "--root", str(data_dir), "--today", "2026-11-18"],
-        cwd=tmp_root,
-        env=env,
-    )
+    _run([plainbrain_bin, "brief", "--today", "2026-11-18"], cwd=decoy_dir, env=env)
     brief_path = data_dir / "reviews" / "daily" / "2026-11-18.md"
     if not brief_path.is_file():
         raise AssertionError(f"brief did not create {brief_path}")
+
+    _run([plainbrain_bin, "doctor", "--today", "2026-11-18"], cwd=data_dir, env=env)
+    _run([plainbrain_bin, "doctor", "--today", "2026-11-18"], cwd=decoy_dir, env=env)
+
+    deny_payload = json.dumps({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "cwd": str(decoy_dir),
+        "tool_input": {"file_path": str(data_dir / "INBOX.md"), "content": "x"},
+    })
+    deny_proc = _run([guard_bin], cwd=decoy_dir, env=env, input_text=deny_payload, check=False)
+    deny_output = f"{deny_proc.stdout}\n{deny_proc.stderr}"
+    if deny_proc.returncode != 2 or "deny" not in deny_output or "plainbrain capture" not in deny_output:
+        raise AssertionError(
+            f"Expected guard deny (exit 2) for data/INBOX.md, got {deny_proc.returncode}: {deny_output}"
+        )
+
+    allow_payload = json.dumps({
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "tool_input": {"file_path": "INBOX.md", "content": "x"},
+    })
+    allow_proc = _run([guard_bin], cwd=decoy_dir, env=env, input_text=allow_payload, check=False)
+    allow_output = f"{allow_proc.stdout}\n{allow_proc.stderr}"
+    if allow_proc.returncode != 0 or "deny" in allow_output:
+        raise AssertionError(
+            f"Expected guard allow (exit 0) for bare INBOX.md without cwd, got {allow_proc.returncode}: {allow_output}"
+        )
+
+    ephemeral_env = {**env, "PLAINBRAIN_TEMP_ROOT": str(tmp_root)}
+    eph_proc = _run([plainbrain_bin, "doctor", "--today", "2026-11-18"], cwd=data_dir, env=ephemeral_env)
+    eph_out = eph_proc.stdout.lower()
+    if "warn" not in eph_out or "temporary" not in eph_out or ("pipx" not in eph_out and "uv tool install" not in eph_out):
+        raise AssertionError(f"Expected ephemeral doctor warning mentioning temporary + pipx/uv tool install, got:\n{eph_proc.stdout}")
 
     assets_check = (
         "from pathlib import Path; "
@@ -133,19 +217,42 @@ def _verify_core_wheel(wheel: Path, tmp_root: Path, env: dict[str, str]) -> None
         "print(d)"
     )
     _run([str(venv_py), "-c", assets_check], cwd=tmp_root, env=env)
+    return data_dir, decoy_dir
 
 
-def _verify_mcp_extra(wheel: Path, tmp_root: Path, env: dict[str, str]) -> None:
+def _verify_mcp_extra(
+    wheel: Path,
+    tmp_root: Path,
+    env: dict[str, str],
+    data_dir: Path,
+    decoy_dir: Path,
+) -> None:
     venv_dir = tmp_root / "venv-mcp"
     _create_venv(venv_dir)
     _, venv_py, _ = _venv_paths(venv_dir)
 
-    _run([str(venv_py), "-m", "pip", "install", "--quiet", f"{wheel}[mcp]"], cwd=tmp_root, env=env)
     _run(
-        [str(venv_py), "-c", "from plainbrain import mcp_server; assert callable(mcp_server.main)"],
+        [str(venv_py), "-m", "pip", "install", "--quiet", f"{wheel}[mcp]"],
         cwd=tmp_root,
         env=env,
+        timeout=300,
     )
+    mcp_check = (
+        "from pathlib import Path; "
+        "from plainbrain import mcp_server; "
+        "assert callable(mcp_server.main); "
+        f"expected = Path({str(data_dir.resolve())!r}).resolve(); "
+        "root = mcp_server._root(); "
+        "assert root is not None and root.resolve() == expected, f'unexpected _root(): {root}'; "
+        "items = mcp_server.open_items(); "
+        "assert items, f'expected active items, got: {items}'; "
+        "brief = mcp_server.latest_brief(); "
+        "assert '2026-11-18' in brief, f'unexpected latest_brief(): {brief[:120]}'; "
+        "line = mcp_server.capture('demo', 'MCP wheel check'); "
+        "assert 'MCP wheel check' in line, f'unexpected capture(): {line}'; "
+        "assert 'MCP wheel check' in (expected / 'INBOX.md').read_text(encoding='utf-8')"
+    )
+    _run([str(venv_py), "-c", mcp_check], cwd=decoy_dir, env=env)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -159,13 +266,23 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     wheel = _resolve_wheel(Path(args.target))
-    env = _clean_env()
+    base_env = _clean_env()
 
     with tempfile.TemporaryDirectory(prefix="plainbrain-wheel-smoke-") as td:
         tmp_root = Path(td)
-        _verify_core_wheel(wheel, tmp_root, env)
+        fake_home = tmp_root / "home"
+        fake_home.mkdir()
+        ephemeral_dir = tmp_root / "ephemeral-temp"
+        ephemeral_dir.mkdir()
+        env = {
+            **base_env,
+            "HOME": str(fake_home),
+            "USERPROFILE": str(fake_home),
+            "PLAINBRAIN_TEMP_ROOT": str(ephemeral_dir),
+        }
+        data_dir, decoy_dir = _verify_core_wheel(wheel, tmp_root, env, fake_home)
         if args.with_mcp:
-            _verify_mcp_extra(wheel, tmp_root, env)
+            _verify_mcp_extra(wheel, tmp_root, env, data_dir, decoy_dir)
 
     extras = " (+mcp)" if args.with_mcp else ""
     print(f"Wheel smoke test passed{extras}: {wheel.name}")

@@ -26,13 +26,17 @@ CHECKOUT = Path(__file__).resolve().parents[1]
 if str(CHECKOUT) not in sys.path:
     sys.path.insert(0, str(CHECKOUT))
 
-from plainbrain.home import data_root  # noqa: E402
+from plainbrain.home import data_root, is_packaged  # noqa: E402
 
 STATE = Path(tempfile.gettempdir()) / "plainbrain-capture-nudge"
 
 _SHELL = {"bash", "powershell", "shell"}
 _OUTCOME = re.compile(r"\bgit\s+(?:-C\s+\S+\s+)?(commit)\b|\bgh\s+pr\s+(create|merge)\b", re.IGNORECASE)
-_CAPTURE = re.compile(r"brain\.py[\"']?\s+capture\b", re.IGNORECASE)
+_CAPTURE = re.compile(
+    r"brain\.py[\"']?\s+capture\b"
+    r"|(?:^|[\s&;|\"'/\\])plainbrain(?:\.exe)?[\"']?\s+capture\b",
+    re.IGNORECASE,
+)
 # The folder after cd / Set-Location / git -C: a quoted path (which may hold spaces) or a bare one.
 _CD = re.compile(r"(?:\bcd|\bSet-Location|\bgit\s+-C)\s+(?:\"([^\"]+)\"|'([^']+)'|([A-Za-z]:[\\/][^\s;&|]+|/[^\s;&|]+))",
                  re.IGNORECASE)
@@ -112,15 +116,23 @@ def _remember(session: str, total: int) -> None:
 
 def reason(pending: list[str], cwd: str, brain: Path, today: str) -> str:
     listed = "; ".join(dict.fromkeys(pending))
-    script = (CHECKOUT / "scripts" / "brain.py").as_posix()
     repo = _folder_name(cwd) or "<folder-name>"
+    if is_packaged():
+        command = (
+            f'plainbrain capture --repo "{repo}" --today {today} '
+            '--text "<what happened, and what is left>"'
+        )
+    else:
+        script = (CHECKOUT / "scripts" / "brain.py").as_posix()
+        command = (
+            f'python "{script}" capture --root "{brain.as_posix()}" --repo "{repo}" --today {today} '
+            '--text "<what happened, and what is left>"'
+        )
     return (
         f"Before you stop: this session finished work that is not in the owner's Plainbrain inbox yet ({listed}). "
-        "Capture what the next session should know, one sentence per fact: "
-        f'python "{script}" capture --root "{brain.as_posix()}" --repo "{repo}" --today {today} '
-        '--text "<what happened, and what is left>" (use the folder name of the project the work was in as '
-        "--repo), or the Plainbrain MCP capture tool. Tell the owner what you captured. If nothing here is worth "
-        "tracking, say so in one line and stop."
+        f"Capture what the next session should know, one sentence per fact: {command} "
+        "(use the folder name of the project the work was in as --repo), or the Plainbrain MCP capture tool. "
+        "Tell the owner what you captured. If nothing here is worth tracking, say so in one line and stop."
     )
 
 

@@ -46,6 +46,7 @@ include = [
     "/knowledge",
     "/.claude/skills",
     "/.agents/skills",
+    "/.gemini/settings.json",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -61,3 +62,4 @@ packages = ["plainbrain"]
 "knowledge" = "plainbrain/_assets/knowledge"
 ".claude/skills" = "plainbrain/_assets/.claude/skills"
 ".agents/skills" = "plainbrain/_assets/.agents/skills"
+".gemini/settings.json" = "plainbrain/_assets/.gemini/settings.json"

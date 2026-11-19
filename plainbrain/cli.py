@@ -21,7 +21,7 @@ from plainbrain.board import write_board
 from plainbrain.brief import write_brief
 from plainbrain.capture import CaptureError, capture_line, drop_lines, repo_view
 from plainbrain.doctor import run_doctor
-from plainbrain import global_hooks, recent, registry
+from plainbrain import global_hooks, home, plugin_setup, recent, registry
 from plainbrain.ingest import log_pairs, write_ingest
 from plainbrain.model import valid_date
 from plainbrain.research import write_research
@@ -95,48 +95,58 @@ def init(root: Path, areas: str, capacity: str = "Unknown", example: bool = True
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="brain.py")
     sub = parser.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("setup", help="create a Plainbrain folder and record where it is")
+    p.add_argument("--to", required=True, help="the folder to create, for example Documents/my-plainbrain")
+    p.add_argument("--adopt", action="store_true", help="use an existing Plainbrain folder without copying")
     p = sub.add_parser("init", help="create the registry, inbox and context files")
-    p.add_argument("--root", required=True)
+    p.add_argument("--root", default=None)
     p.add_argument("--areas", default="Work, Personal")
     p.add_argument("--capacity", default="Unknown", help="free time in the owner's words, such as 'about 2 hours a day'")
     p.add_argument("--no-example", action="store_true", help="start with no example commitment")
     p.add_argument("--about", default="", help="who the owner is and what they work on, in their words")
     for name in ("brief", "board", "review", "inbox", "ingest", "doctor"):
         p = sub.add_parser(name)
-        p.add_argument("--root", required=True)
+        p.add_argument("--root", default=None)
         p.add_argument("--today")
     registry.add_parser(sub)
     recent.add_parser(sub)
     global_hooks.add_parser(sub)
     p = sub.add_parser("capture")
-    p.add_argument("--root", required=True)
+    p.add_argument("--root", default=None)
     p.add_argument("--repo", required=True, help="the folder or project the line comes from")
     p.add_argument("--text", required=True)
     p.add_argument("--today")
     p = sub.add_parser("for-repo")
-    p.add_argument("--root", required=True)
+    p.add_argument("--root", default=None)
     p.add_argument("--repo", required=True)
     p.add_argument("--today")
     p = sub.add_parser("inbox-drop")
-    p.add_argument("--root", required=True)
+    p.add_argument("--root", default=None)
     p.add_argument("--line", action="append")
     p.add_argument("--contains", action="append")
     p = sub.add_parser("ingest-log")
-    p.add_argument("--root", required=True)
+    p.add_argument("--root", default=None)
     p.add_argument("--today")
     p.add_argument("--line")
     p.add_argument("--contains")
     p.add_argument("--page", action="append", required=True)
     p.add_argument("--outcome", required=True, choices=("updated", "unchanged", "rejected"))
     p = sub.add_parser("search")
-    p.add_argument("--root", required=True)
+    p.add_argument("--root", default=None)
     p.add_argument("--query", required=True)
     p = sub.add_parser("research")
-    p.add_argument("--root", required=True)
+    p.add_argument("--root", default=None)
     p.add_argument("--source", required=True, help="one folder under the root, read only")
     p.add_argument("--today")
     args = parser.parse_args(argv)
 
+    if args.cmd == "setup":
+        try:
+            print(plugin_setup.set_up(Path(args.to), adopt=args.adopt, mode="package"))
+        except (OSError, ValueError) as exc:
+            print(f"not set up: {exc}", file=sys.stderr)
+            return 1
+        return 0
     if args.cmd == "recent":
         print(recent.printable(recent.run(args), sys.stdout.encoding))
         return 0
@@ -146,7 +156,13 @@ def main(argv=None) -> int:
         except ValueError as exc:
             parser.error(str(exc))
         return 0
-    root = Path(args.root)
+    root = home.resolve_cli_root(getattr(args, "root", None))
+    if root is None:
+        print(
+            "No Plainbrain folder found. Run plainbrain setup --to <folder>, set BRAIN_ROOT, or pass --root <folder>.",
+            file=sys.stderr,
+        )
+        return 1
     if args.cmd == "init":
         return init(root, args.areas, args.capacity, not args.no_example, args.about)
     if args.cmd == "search":
@@ -170,7 +186,7 @@ def main(argv=None) -> int:
                 print(message)
             return 0
         if args.cmd == "registry":
-            print(registry.run(args, today))
+            print(registry.run(args, today, root=root))
             return 0
     except (CaptureError, registry.RegistryError) as exc:
         print(str(exc), file=sys.stderr)

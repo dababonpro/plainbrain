@@ -23,7 +23,7 @@ def test_file_edits_to_the_registry_ask():
 
 def test_the_ask_names_the_registry_command():
     reason = _claude("Write", {"file_path": REGISTRY})["hookSpecificOutput"]["permissionDecisionReason"]
-    assert "brain.py registry" in reason
+    assert "brain.py" in reason and "registry" in reason
 
 
 def test_reads_and_registry_commands_pass():

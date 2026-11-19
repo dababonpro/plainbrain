@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 POINTER_NAME = ".plainbrain"
+MARKER_NAME = ".plainbrain-folder"
 NOT_SET_UP = ("Plainbrain is installed as a plugin and has no folder yet. Ask the owner to say "
               '"Set up Plainbrain", which creates their folder and records where it is.')
 
@@ -30,12 +31,38 @@ def as_plugin() -> bool:
     return bool(os.environ.get("CLAUDE_PLUGIN_ROOT"))
 
 
-def data_root(checkout: Path) -> Path | None:
-    """The folder holding the owner's files: BRAIN_ROOT when set, the recorded folder when running as a plugin,
-    else `checkout`. None means a plugin install that has not been set up, so there is nowhere safe to write."""
+def is_packaged() -> bool:
+    return (Path(__file__).resolve().parent / "_assets" / "AGENTS.md").is_file()
+
+
+def is_plainbrain_cwd(cwd: Path) -> bool:
+    return (cwd / MARKER_NAME).is_file() or (cwd / "scripts" / "brain.py").is_file()
+
+
+def resolve_cli_root(explicit: str | None = None, cwd: Path | None = None) -> Path | None:
+    """Resolve the Plainbrain folder for CLI commands: --root, BRAIN_ROOT, a Plainbrain cwd, or ~/.plainbrain."""
+    if explicit and explicit.strip():
+        return Path(explicit.strip()).expanduser()
     named = os.environ.get("BRAIN_ROOT", "").strip()
     if named:
         return Path(named).expanduser()
-    if as_plugin():
+    here = (cwd or Path.cwd()).resolve()
+    if is_plainbrain_cwd(here):
+        return here
+    return recorded_folder()
+
+
+def resolve_global_root(checkout: Path | None = None) -> Path | None:
+    """Resolve the Plainbrain folder for global callers (MCP, hooks): never reads cwd."""
+    named = os.environ.get("BRAIN_ROOT", "").strip()
+    if named:
+        return Path(named).expanduser()
+    if as_plugin() or is_packaged():
         return recorded_folder()
     return checkout
+
+
+def data_root(checkout: Path) -> Path | None:
+    """The folder holding the owner's files: BRAIN_ROOT when set, the recorded folder when packaged or a plugin,
+    else `checkout`. None means a packaged or plugin install that has not been set up, so there is nowhere safe to write."""
+    return resolve_global_root(checkout)

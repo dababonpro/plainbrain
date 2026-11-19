@@ -1,0 +1,15 @@
+{
+  "name": "dababonpro-plainbrain",
+  "owner": {
+    "name": "DababonPro",
+    "url": "https://dababon.pro"
+  },
+  "plugins": [
+    {
+      "name": "plainbrain",
+      "source": "./",
+      "description": "A second brain in plain Markdown files on your own computer: one list of commitments, an inbox that only grows, notes worth finding again, and a daily brief. Your agent proposes; you approve.",
+      "version": "1.2.0"
+    }
+  ]
+}

@@ -14,32 +14,20 @@ import re
 import sys
 from pathlib import Path
 
+CHECKOUT = Path(__file__).resolve().parents[1]
+if str(CHECKOUT) not in sys.path:
+    sys.path.insert(0, str(CHECKOUT))
 
+from plainbrain.home import as_plugin, is_packaged, resolve_global_root  # noqa: E402
 
-AS_PLUGIN = bool(os.environ.get("CLAUDE_PLUGIN_ROOT"))
-
-
-def _home() -> Path | None:
-    """The folder whose inbox is guarded, or None when there is none to guard.
-
-    In the owner's own folder that is this checkout. Run as a Claude plugin, the script sits in the plugin's
-    install folder, so it guards BRAIN_ROOT when that is set, else the folder that setup recorded. Before setup,
-    or when that folder is gone, a plugin has no inbox, and the guard allows everything."""
-    if not AS_PLUGIN:
-        return Path(__file__).resolve().parents[1]
-    named = os.environ.get("BRAIN_ROOT", "").strip()
-    if not named:
-        try:
-            named = (Path.home() / ".plainbrain").read_text(encoding="utf-8").strip()
-        except OSError:
-            named = ""
-    folder = Path(named).expanduser() if named else None
-    return folder if folder and folder.is_dir() else None
-
-
-HOME = _home()
+AS_PLUGIN = as_plugin()
+PACKAGED = is_packaged()
+GLOBAL_MODE = AS_PLUGIN or PACKAGED
+# A plugin or packaged install runs from a folder that holds no data, so it looks the owner's folder up. A cloned
+# folder holds this script beside its own inbox and guards that inbox, whatever BRAIN_ROOT names.
+HOME = resolve_global_root(CHECKOUT) if GLOBAL_MODE else CHECKOUT
 # With no folder, this path names a file that never exists, so no edit can match it.
-INBOX = (HOME or Path(__file__).resolve().parents[1] / ".not-set-up") / "INBOX.md"
+INBOX = (HOME or CHECKOUT / ".not-set-up") / "INBOX.md"
 REGISTRY = INBOX.parent / "REGISTRY.md"
 
 WRITE_TOOLS = {
@@ -60,17 +48,30 @@ READ_TOOLS = {"read", "grep", "glob", "semanticsearch", "tabread"}
 SHELL_TOOLS = {"bash", "powershell", "shell", "runterminalcmd", "terminal", "runcommand", "execcommand"}
 
 _HOME = INBOX.parent.as_posix()
-REASON = (
-    "Do not edit INBOX.md. Append with: "
-    f"python {_HOME}/scripts/brain.py capture --root {_HOME} --repo <repo-name> "
-    '--today YYYY-MM-DD --text "one sentence". '
-    f'Remove an accepted triage line with: python {_HOME}/scripts/brain.py inbox-drop --root {_HOME} --line "<exact line>"'
-)
-REGISTRY_REASON = (
-    "REGISTRY.md changes go through a command after the owner accepts them: "
-    f"python {_HOME}/scripts/brain.py registry add|update|done|focus|archive --root {_HOME} ... "
-    "Edit the file by hand only when no command covers the change and the owner has accepted the exact lines."
-)
+if PACKAGED:
+    REASON = (
+        "Do not edit INBOX.md. Append with: "
+        'plainbrain capture --repo <repo-name> --today YYYY-MM-DD --text "one sentence". '
+        'Remove an accepted triage line with: plainbrain inbox-drop --line "<exact line>"'
+    )
+    REGISTRY_REASON = (
+        "REGISTRY.md changes go through a command after the owner accepts them: "
+        "plainbrain registry add|update|done|focus|archive ... "
+        "Edit the file by hand only when no command covers the change and the owner has accepted the exact lines."
+    )
+else:
+    _SCRIPT = (CHECKOUT / "scripts" / "brain.py").as_posix()
+    REASON = (
+        "Do not edit INBOX.md. Append with: "
+        f'python "{_SCRIPT}" capture --root "{_HOME}" --repo <repo-name> '
+        '--today YYYY-MM-DD --text "one sentence". '
+        f'Remove an accepted triage line with: python "{_SCRIPT}" inbox-drop --root "{_HOME}" --line "<exact line>"'
+    )
+    REGISTRY_REASON = (
+        "REGISTRY.md changes go through a command after the owner accepts them: "
+        f'python "{_SCRIPT}" registry add|update|done|focus|archive --root "{_HOME}" ... '
+        "Edit the file by hand only when no command covers the change and the owner has accepted the exact lines."
+    )
 
 _PATH_KEYS = {"path", "file_path", "filepath", "target_file", "targetfile", "file", "notebook_path"}
 # File headers in a Codex apply_patch body: Add, Update, Delete, and the target of a move.
@@ -93,7 +94,12 @@ _REDIRECT_REGISTRY = re.compile(r">\s*[\"']?\S*registry\.md", re.IGNORECASE)
 _QUOTED = re.compile(r'"(?:[^"\\]|\\.)*"|\'[^\']*\'')
 _CHAIN = re.compile(r"[;&|<>`\n]|\$\(")
 _OWN_COMMAND = re.compile(
-    r"^\s*(\S*python\S*|py)(\s+-\S+)*\s+\S*brain\.py\s+(capture|inbox-drop|for-repo|registry)(\s|$)",
+    r"^\s*(?:"
+    r"(?:\S*python\S*|py)(?:\s+-\S+)*\s+\S*brain\.py"
+    r"|\"(?:[^\"]*[/\\])?plainbrain(?:\.exe)?\""
+    r"|'(?:[^']*[/\\])?plainbrain(?:\.exe)?'"
+    r"|(?:[^\s\"']*[/\\])?plainbrain(?:\.exe)?"
+    r")\s+(capture|inbox-drop|for-repo|registry)(\s|$)",
     re.IGNORECASE,
 )
 
@@ -106,9 +112,27 @@ def _norm(path: str) -> str:
     return text.casefold()
 
 
+def _real(path: str) -> str:
+    """The path as the file system spells it, so `..`, links and Windows short names all give one answer.
+
+    A path that cannot be resolved keeps its text, which the plain comparison has already checked."""
+    text = path.strip().strip("'\"")
+    if os.name == "nt":
+        found = re.match(r"^/([a-zA-Z])/(.*)$", text.replace("\\", "/"))
+        if found:  # Git Bash spells C:/Users as /c/Users
+            text = f"{found.group(1)}:/{found.group(2)}"
+    try:
+        return _norm(os.path.realpath(text))
+    except (OSError, ValueError):
+        return _norm(text)
+
+
 INBOX_KEY = _norm(str(INBOX))
 REGISTRY_KEY = _norm(str(REGISTRY))
 ROOT_KEY = _norm(str(INBOX.parent))
+_REAL = {INBOX_KEY: _real(str(INBOX)), REGISTRY_KEY: _real(str(REGISTRY)), ROOT_KEY: _real(str(INBOX.parent))}
+# A path inside a shell command: one quoted run, or one run with no blank, quote or shell operator in it.
+_SHELL_PATH = re.compile(r'"([^"]*)"|\'([^\']*)\'|([^\s"\'<>|;&()=]+)')
 
 
 def _cwd(payload: dict) -> str:
@@ -127,12 +151,16 @@ def _is_file(path: str, cwd: str, target: str) -> bool:
     if HOME is None or Path(key).name != Path(target).name:
         return False
     if re.match(r"^[a-z]:/", key) or key.startswith("/"):
-        return key == target
+        return key == target or _real(path) == _REAL.get(target, target)
     if not cwd:
-        # The folder the tool ran in is unknown. In the owner's own folder, assume the worst. As a plugin the
-        # hook runs in every project, where a bare file of this name is most likely someone else's.
-        return not AS_PLUGIN
-    return _norm(f"{cwd.rstrip('/')}/{key}").replace("/./", "/") == target
+        # The folder the tool ran in is unknown. In the owner's own folder, assume the worst. As a plugin or
+        # packaged install the hook runs in every project, where a bare file of this name is most likely someone else's.
+        return not GLOBAL_MODE
+    if _norm(f"{cwd.rstrip('/')}/{key}").replace("/./", "/") == target:
+        return True
+    # Resolved with the letters as given: on Linux a folded name would not find the link it has to follow.
+    as_given = path.strip().strip("'\"")
+    return _real(f"{cwd.rstrip('/')}/{as_given}") == _REAL.get(target, target)
 
 
 def _is_inbox(path: str, cwd: str = "") -> bool:
@@ -153,10 +181,18 @@ def _mentions(command: str, cwd: str, target: str) -> bool:
         return False
     if target in _norm(lowered):
         return True
-    # A bare INBOX.md counts when the shell runs in Plainbrain, or when the folder is unknown.
+    # A bare INBOX.md counts when the shell runs in Plainbrain, or when the folder is unknown outside global mode.
     if not cwd:
-        return not AS_PLUGIN
-    return _norm(cwd).rstrip("/") == ROOT_KEY
+        return not GLOBAL_MODE
+    if _norm(cwd).rstrip("/") == ROOT_KEY or _real(cwd) == _REAL.get(ROOT_KEY, ROOT_KEY):
+        return True
+    # The file named another way: through `..`, a link, or a Windows short name.
+    name = Path(target).name
+    for match in _SHELL_PATH.finditer(command):
+        token = next(group for group in match.groups() if group is not None)
+        if _norm(token).endswith(name) and _is_file(token, cwd, target):
+            return True
+    return False
 
 
 def _paths(obj, found: list[str]) -> None:
@@ -207,14 +243,44 @@ def _claude_ask() -> dict:
     }
 
 
-def _own_command(command: str) -> bool:
-    """One brain.py capture/inbox-drop/for-repo/registry call with nothing chained after it."""
-    text = re.sub(r"^\s*&\s*", "", command.strip())
-    exe = re.match(r"^\"([^\"]*)\"|^'([^']*)'", text)
-    if exe:
-        if "python" not in (exe.group(1) or exe.group(2) or "").casefold():
+def _match_python_brain(tail: str) -> bool:
+    """Match optional python flags + quoted/unquoted brain.py + subcommand, without shell chaining."""
+    m = re.match(r'^(?:\s+-\S+)*\s+(?:"([^"]*)"|\'([^\']*)\')', tail)
+    if m:
+        script = m.group(1) if m.group(1) is not None else m.group(2)
+        if m.group(1) is not None and ("$(" in script or "`" in script):
             return False
-        text = "python" + text[exe.end():]
+        if not re.search(r"(?:^|[/\\])brain\.py$", script, re.IGNORECASE):
+            return False
+        rest = _QUOTED.sub('""', tail[m.end():])
+        return _OWN_COMMAND.match("python brain.py" + rest) is not None and _CHAIN.search(rest) is None
+    rest = _QUOTED.sub('""', tail)
+    bare = "python" + rest
+    return _OWN_COMMAND.match(bare) is not None and _CHAIN.search(bare) is None
+
+
+def _own_command(command: str) -> bool:
+    """One brain.py or plainbrain capture/inbox-drop/for-repo/registry call with nothing chained after it."""
+    text = re.sub(r"^\s*&\s*", "", command.strip())
+    # The shell runs $(...) and backticks inside double quotes before the command starts, so that is a second
+    # command hidden in an argument. Single quotes keep their text as it is.
+    for quoted in _QUOTED.finditer(text):
+        if quoted.group(0).startswith('"') and ("$(" in quoted.group(0) or "`" in quoted.group(0)):
+            return False
+    exe = re.match(r'^"([^"]*)"|^\'([^\']*)\'', text)
+    if exe:
+        inner = exe.group(1) if exe.group(1) is not None else exe.group(2)
+        if exe.group(0).startswith('"') and ("$(" in inner or "`" in inner):
+            return False
+        rest = _QUOTED.sub('""', text[exe.end():])
+        if _OWN_COMMAND.match(exe.group(0) + rest) is not None:
+            return _CHAIN.search(rest) is None
+        if "python" not in inner.casefold():
+            return False
+        return _match_python_brain(text[exe.end():])
+    py = re.match(r"^(?:\S*python\S*|py)(?=\s)", text, re.IGNORECASE)
+    if py:
+        return _match_python_brain(text[py.end():])
     bare = _QUOTED.sub('""', text)
     return _OWN_COMMAND.match(bare) is not None and _CHAIN.search(bare) is None
 
