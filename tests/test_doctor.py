@@ -93,11 +93,12 @@ def test_doctor_checks_data_only_folder_in_packaged_mode(tmp_path, monkeypatch):
     brain.init(tmp_path, "Work")
 
     seen = []
-    real_blocks = doctor._blocks
 
     def spy_blocks(argv, env=None, target_root=None):
+        # This records how doctor calls the guard. The guard started from this checkout is not a packaged one,
+        # so it guards the checkout whatever BRAIN_ROOT says; tests/smoke_wheel.py runs the real packaged guard.
         seen.append((argv, env, target_root))
-        return real_blocks(argv, env=env, target_root=target_root)
+        return True
 
     monkeypatch.setattr(doctor, "_blocks", spy_blocks)
     results = doctor.checks(tmp_path)

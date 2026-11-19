@@ -290,3 +290,57 @@ def test_quoted_brain_py_path_is_allowed_and_chained_rejected():
     assert _claude("Bash", {"command": allowed}) == {}
     assert not inbox_guard._own_command(chained)
     assert _deny(_claude("Bash", {"command": chained}))
+
+
+def test_denies_another_spelling_of_this_inbox(tmp_path):
+    """The same file can be named with `..`, through a link, or by a Windows short name. All of them are this inbox."""
+    dotted = f"{HERE}/knowledge/../INBOX.md"
+    assert _deny(_claude("Write", {"file_path": dotted, "content": "x"}))
+    assert _deny(_claude("Write", {"file_path": "knowledge/../INBOX.md", "content": "x"}))
+    assert _deny(_claude("Bash", {"command": f'echo x > "{dotted}"'}, cwd=str(tmp_path)))
+    assert _deny(_claude("Bash", {"command": "echo x > INBOX.md"}, cwd=f"{HERE}/knowledge/.."))
+    assert not _deny(_claude("Write", {"file_path": f"{HERE}/knowledge/../README.md", "content": "x"}))
+
+    link = tmp_path / "link"
+    try:
+        link.symlink_to(HERE, target_is_directory=True)
+    except OSError:
+        return  # Windows without the right to create links
+    assert _deny(_claude("Write", {"file_path": str(link / "INBOX.md"), "content": "x"}))
+    assert _deny(_claude("Bash", {"command": "echo x > INBOX.md"}, cwd=str(link)))
+    assert not _deny(_claude("Read", {"file_path": str(link / "INBOX.md")}))
+
+
+def test_a_substitution_inside_a_quoted_argument_is_not_an_own_command():
+    """The shell runs $(...) and backticks inside double quotes before capture ever starts."""
+    for command in (
+        'python scripts/brain.py capture --root . --repo a --text "$(echo x > INBOX.md)"',
+        'plainbrain capture --repo a --text "$(echo x > INBOX.md)"',
+        'plainbrain capture --repo a --text "`echo x > INBOX.md`"',
+        f'"C:/Tools/plainbrain.exe" capture --repo a --text "$(echo x > {INBOX})"',
+    ):
+        assert not inbox_guard._own_command(command), command
+        assert _deny(_claude("Bash", {"command": command})), command
+    # Single quotes keep the text as it is, so this is one capture call and nothing else.
+    literal = "plainbrain capture --repo a --text 'said: $(echo x > INBOX.md)'"
+    assert inbox_guard._own_command(literal)
+    assert _claude("Bash", {"command": literal}) == {}
+
+
+def test_a_cloned_folder_guards_itself_whatever_brain_root_says(tmp_path):
+    """Outside a plugin or package, the guard sits in the folder it protects. BRAIN_ROOT must not move it."""
+    import json
+    import os
+    import subprocess
+    import sys
+
+    checkout = Path(inbox_guard.__file__).resolve().parents[1]
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "CLAUDE_PLUGIN_ROOT")}
+    env["BRAIN_ROOT"] = str(tmp_path / "elsewhere")
+    payload = json.dumps({
+        "hook_event_name": "PreToolUse", "tool_name": "Write", "cwd": str(checkout),
+        "tool_input": {"file_path": str(checkout / "INBOX.md"), "content": "x"},
+    })
+    done = subprocess.run([sys.executable, str(checkout / "scripts" / "inbox_guard.py")], input=payload,
+                          capture_output=True, text=True, env=env, timeout=30)
+    assert done.returncode == 2 and "deny" in done.stdout, (done.returncode, done.stdout, done.stderr)

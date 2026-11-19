@@ -9,6 +9,7 @@ and Antigravity (PreToolUse with toolCall). Antigravity has no ask decision, so 
 an instruction in AGENTS.md. Codex file edits arrive as apply_patch text, so the patch's file headers are
 read as paths."""
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -22,7 +23,9 @@ from plainbrain.home import as_plugin, is_packaged, resolve_global_root  # noqa:
 AS_PLUGIN = as_plugin()
 PACKAGED = is_packaged()
 GLOBAL_MODE = AS_PLUGIN or PACKAGED
-HOME = resolve_global_root(CHECKOUT)
+# A plugin or packaged install runs from a folder that holds no data, so it looks the owner's folder up. A cloned
+# folder holds this script beside its own inbox and guards that inbox, whatever BRAIN_ROOT names.
+HOME = resolve_global_root(CHECKOUT) if GLOBAL_MODE else CHECKOUT
 # With no folder, this path names a file that never exists, so no edit can match it.
 INBOX = (HOME or CHECKOUT / ".not-set-up") / "INBOX.md"
 REGISTRY = INBOX.parent / "REGISTRY.md"
@@ -109,9 +112,27 @@ def _norm(path: str) -> str:
     return text.casefold()
 
 
+def _real(path: str) -> str:
+    """The path as the file system spells it, so `..`, links and Windows short names all give one answer.
+
+    A path that cannot be resolved keeps its text, which the plain comparison has already checked."""
+    text = path.strip().strip("'\"")
+    if os.name == "nt":
+        found = re.match(r"^/([a-zA-Z])/(.*)$", text.replace("\\", "/"))
+        if found:  # Git Bash spells C:/Users as /c/Users
+            text = f"{found.group(1)}:/{found.group(2)}"
+    try:
+        return _norm(os.path.realpath(text))
+    except (OSError, ValueError):
+        return _norm(text)
+
+
 INBOX_KEY = _norm(str(INBOX))
 REGISTRY_KEY = _norm(str(REGISTRY))
 ROOT_KEY = _norm(str(INBOX.parent))
+_REAL = {INBOX_KEY: _real(str(INBOX)), REGISTRY_KEY: _real(str(REGISTRY)), ROOT_KEY: _real(str(INBOX.parent))}
+# A path inside a shell command: one quoted run, or one run with no blank, quote or shell operator in it.
+_SHELL_PATH = re.compile(r'"([^"]*)"|\'([^\']*)\'|([^\s"\'<>|;&()=]+)')
 
 
 def _cwd(payload: dict) -> str:
@@ -130,12 +151,16 @@ def _is_file(path: str, cwd: str, target: str) -> bool:
     if HOME is None or Path(key).name != Path(target).name:
         return False
     if re.match(r"^[a-z]:/", key) or key.startswith("/"):
-        return key == target
+        return key == target or _real(path) == _REAL.get(target, target)
     if not cwd:
         # The folder the tool ran in is unknown. In the owner's own folder, assume the worst. As a plugin or
         # packaged install the hook runs in every project, where a bare file of this name is most likely someone else's.
         return not GLOBAL_MODE
-    return _norm(f"{cwd.rstrip('/')}/{key}").replace("/./", "/") == target
+    if _norm(f"{cwd.rstrip('/')}/{key}").replace("/./", "/") == target:
+        return True
+    # Resolved with the letters as given: on Linux a folded name would not find the link it has to follow.
+    as_given = path.strip().strip("'\"")
+    return _real(f"{cwd.rstrip('/')}/{as_given}") == _REAL.get(target, target)
 
 
 def _is_inbox(path: str, cwd: str = "") -> bool:
@@ -159,7 +184,15 @@ def _mentions(command: str, cwd: str, target: str) -> bool:
     # A bare INBOX.md counts when the shell runs in Plainbrain, or when the folder is unknown outside global mode.
     if not cwd:
         return not GLOBAL_MODE
-    return _norm(cwd).rstrip("/") == ROOT_KEY
+    if _norm(cwd).rstrip("/") == ROOT_KEY or _real(cwd) == _REAL.get(ROOT_KEY, ROOT_KEY):
+        return True
+    # The file named another way: through `..`, a link, or a Windows short name.
+    name = Path(target).name
+    for match in _SHELL_PATH.finditer(command):
+        token = next(group for group in match.groups() if group is not None)
+        if _norm(token).endswith(name) and _is_file(token, cwd, target):
+            return True
+    return False
 
 
 def _paths(obj, found: list[str]) -> None:
@@ -229,6 +262,11 @@ def _match_python_brain(tail: str) -> bool:
 def _own_command(command: str) -> bool:
     """One brain.py or plainbrain capture/inbox-drop/for-repo/registry call with nothing chained after it."""
     text = re.sub(r"^\s*&\s*", "", command.strip())
+    # The shell runs $(...) and backticks inside double quotes before the command starts, so that is a second
+    # command hidden in an argument. Single quotes keep their text as it is.
+    for quoted in _QUOTED.finditer(text):
+        if quoted.group(0).startswith('"') and ("$(" in quoted.group(0) or "`" in quoted.group(0)):
+            return False
     exe = re.match(r'^"([^"]*)"|^\'([^\']*)\'', text)
     if exe:
         inner = exe.group(1) if exe.group(1) is not None else exe.group(2)

@@ -50,12 +50,17 @@ def _default_temp_root() -> Path:
 
 def is_ephemeral_path(path: Path, temp_root: Path | None = None) -> bool:
     """Whether `path` lives inside a temporary directory or uv's ephemeral cache."""
-    resolved = Path(path).resolve()
-    base = (temp_root or _default_temp_root()).resolve()
-    if resolved == base or base in resolved.parents:
-        return True
-    parts = tuple(part.lower() for part in resolved.parts)
-    return any((parts[i], parts[i + 1]) in _EPHEMERAL_PAIRS for i in range(len(parts) - 1))
+    # Both spellings count. A virtualenv's `python` is a link to the base interpreter on Linux and macOS, and
+    # following it would place an install in uv's cache at the base interpreter's own, permanent address.
+    base = temp_root or _default_temp_root()
+    bases = {Path(os.path.abspath(base)), Path(base).resolve()}
+    for spelled in {Path(os.path.abspath(path)), Path(path).resolve()}:
+        if any(spelled == one or one in spelled.parents for one in bases):
+            return True
+        parts = tuple(part.lower() for part in spelled.parts)
+        if any((parts[i], parts[i + 1]) in _EPHEMERAL_PAIRS for i in range(len(parts) - 1)):
+            return True
+    return False
 
 
 def resolve_hook_command(kind: str, root: Path | None = None, temp_root: Path | None = None) -> str:

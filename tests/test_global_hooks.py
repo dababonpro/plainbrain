@@ -314,6 +314,24 @@ def test_packaged_hooks_path_venv_and_ephemeral_uvx(tmp_path, monkeypatch):
     }
 
 
+def test_ephemeral_check_does_not_follow_a_venv_python_link(tmp_path):
+    """A virtualenv's `python` is a link to the base interpreter on Linux and macOS. The install is where the
+    link sits, not where it points."""
+    temp_root = tmp_path / "sys-temp"
+    base = tmp_path / "base" / "bin" / "python3"
+    base.parent.mkdir(parents=True)
+    base.write_text("", encoding="utf-8")
+    for folder in (temp_root / "venv" / "bin", tmp_path / "uv" / "cache" / "archive-v0" / "bin"):
+        folder.mkdir(parents=True)
+        linked = folder / "python"
+        try:
+            linked.symlink_to(base)
+        except OSError:
+            pytest.skip("this account cannot create links")
+        assert global_hooks.is_ephemeral_path(linked, temp_root)
+    assert not global_hooks.is_ephemeral_path(base, temp_root)
+
+
 def test_cli_hooks_optional_root_when_packaged(tmp_path, monkeypatch, capsys):
     temp_root = tmp_path / "sys-temp"
     temp_root.mkdir()
