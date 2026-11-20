@@ -41,6 +41,7 @@ If you cloned the repository instead of installing the package, replace `plainbr
 | The owner states a promise or asks "what did I promise?" | Use the `promise-tracking` skill: propose each promise at a pause, and write it only after the owner accepts |
 | "Weekly review" | Run `plainbrain review --today YYYY-MM-DD`, then review each inbox line one at a time |
 | "Triage the inbox" | Run `plainbrain inbox --today YYYY-MM-DD` first, propose one change per line, and write only after the owner accepts |
+| "Automate this" or "turn this into a routine" (for a repeatable workflow) | Use the `automate-this` skill to agree on the goal, process, rules, and routine before running anything; propose the accepted plan as a commitment (and as a note when the rules are worth keeping) and write only after the owner accepts |
 | "Protect my inbox in every project" | Follow step 6 of "First setup" below |
 
 ## First setup
