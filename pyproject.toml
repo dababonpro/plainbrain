@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "plainbrain"
 dynamic = ["version"]
-description = "A second brain you run with plain Markdown files, a few Python scripts, and any AI agent."
+description = "A local commitment and work-loop system in plain Markdown for people running AI agents across projects: one commitment list your agent proposes to and you approve, an append-only inbox guarded by hooks, deterministic daily briefs, searchable notes, and a local MCP server."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

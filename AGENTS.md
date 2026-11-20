@@ -1,6 +1,6 @@
 # Plainbrain Protocol
 
-Rules for any AI agent working in this folder. This folder is the owner's second brain: what they owe, what they know, and what is on their mind.
+Rules for any AI agent working in this folder. This folder is the owner's local commitment and work-loop system (their second brain): what they owe, what they know, and what is on their mind.
 
 ## Where things live
 
