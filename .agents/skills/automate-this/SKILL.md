@@ -1,19 +1,20 @@
 ---
 name: automate-this
-description: "Procedure for turning a manual workflow into an agreed automation plan before anything runs: lock down the goal (revenue or cost), restate today's messy process, surface hidden decisions one at a time, settle source conflicts, define saved vs confirmed done, walk three real examples, design self-checks, pick the trigger, and present the full plan for approval. Use when the user asks to automate a task or workflow, says 'automate this', or wants to design a repeatable process before building or running it."
+description: "Procedure for turning a repeatable manual workflow into an agreed automation plan before anything runs: lock down the goal (revenue, cost, or personal obligation), restate today's messy process, surface hidden decisions one at a time, settle source conflicts, define saved vs confirmed done, walk three real examples, design self-checks, pick the trigger, present the full plan for approval, and propose the accepted plan as a commitment (and a note if rules should outlive the chat). Use when the user asks to 'automate this' or 'turn this into a routine', not for a one-off edit."
 ---
 
 # Automate this
 
 Jumping straight from "automate this" to running tools locks in hidden guesses
 and breaks on the first messy case. This skill is an intake procedure: it turns
-a manual workflow into a plain-language plan that the user approves before any
-automation is built or run.
+a repeatable manual workflow into a plain-language plan that the user approves
+before any automation is built or run.
 
-**Running is out of scope for this skill.** During intake, run nothing and
-change nothing in live systems. In the plan you propose, state that each change
-must be shown before it is made and wait for approval; where `queue-run` is
-installed, point to it for working through many items.
+**Running the automation is out of scope for this skill.** During the interview,
+run none of the automation and change nothing in live external systems. Reading
+open commitments and notes stays allowed, and so does writing the accepted plan
+with the `registry` and note commands afterwards. In the plan you propose, state
+that each change must be shown before it is made and wait for approval.
 
 ## Procedure
 
@@ -22,10 +23,11 @@ the user to confirm.
 
 ### 1. Goal first
 
-Ask what should exist at the end of the workflow, and whether it serves revenue
-or cost (for example: bringing in or keeping revenue, or saving time and
-mistakes). If the goal is vague ("handle invoices", "clean up leads"), keep
-asking until the user confirms the concrete end state in their own words.
+Ask what should exist at the end of the workflow, and whether it serves revenue,
+cost, or a personal obligation (for example: bringing in or keeping revenue,
+saving time and mistakes, or keeping a personal obligation). If the goal is
+vague ("handle invoices", "clean up leads"), keep asking until the user confirms
+the concrete end state in their own words.
 
 ### 2. Today's process
 
@@ -38,7 +40,7 @@ Ask the user to describe how they do the work today, as messily as they like:
 - who gives feedback or needs to know when it finishes.
 
 Restate the whole process in plain words and wait for the user to confirm or
-correct it. Plan first; run nothing.
+correct it. Plan first; run no automation.
 
 ### 3. Hidden decisions
 
@@ -81,18 +83,31 @@ Name what starts the workflow: a manual message, an incoming email or webhook,
 or a schedule (and how often). Confirm whether any trigger needs a dry-run
 window first.
 
-### 9. Plan
+### 9. Plan and record
 
 Present the complete plan in five short parts, then stop and wait for a **yes**:
 
-1. **Goal:** the end state and whether it serves revenue or cost.
+1. **Goal:** the end state and whether it serves revenue, cost, or a personal
+   obligation.
 2. **Process:** the agreed steps, noting that each change is shown before it is
-   made and waits for approval (and pointing to `queue-run` for batch runs when
-   installed).
+   made and waits for approval.
 3. **Rules:** standing decisions, source-of-truth order on conflicts, and
    saved vs. confirmed done.
 4. **Routine:** self-checks, initial data to record, and the trigger.
 5. **Next step:** the single smallest action to take once the user says yes.
+
+After the owner accepts the plan:
+
+1. **Search open commitments first** so you know whether this is a new item or an
+   update to an existing one.
+2. **Propose one registry item:** the goal as the title, part 5 (`Next step`) as
+   `next`, and the trigger in `--why`.
+3. **Propose one knowledge note** (using the `note-creation` skill) when the
+   standing rules should outlive this chat.
+4. **Write only after the owner accepts that proposal,** using the existing
+   `registry` (`plainbrain registry add` / `update`, or `python scripts/brain.py`
+   if cloned) and note-creation commands — or `capture` when running outside the
+   second brain folder, just like `promise-tracking`.
 
 ## Credit
 
